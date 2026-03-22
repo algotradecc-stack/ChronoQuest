@@ -67,6 +67,9 @@
         border-radius: 0;
       }
     }
+
+    /* Hamburger removed */
+    .hamburger { display: none !important; }
   </style>
 </head>
 <body>
@@ -89,11 +92,7 @@
       </svg>
       <span class="logo-text">ChronoQuest</span>
     </div>
-    <button class="hamburger" id="hamburger" aria-label="開啟選單" aria-expanded="false">
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
-      <span class="hamburger-line"></span>
-    </button>
+
     <nav class="nav" id="main-nav" role="navigation" aria-label="主導航">
       <a href="#tree" class="nav-link">轉職路線</a>
       <a href="#heroes" class="nav-link">英雄圖鑑</a>
@@ -115,6 +114,12 @@
     <p style="color: var(--color-text-muted); margin-bottom: 2rem;">每位英雄擁有獨特的成長路線與隱藏職業。請選擇一位作為本次冒險的主角。</p>
     <div id="hero-select-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; max-width: 900px; margin: 0 auto;">
       <!-- Populated by app.js via CQ.heroes -->
+    </div>
+
+    <!-- CTA message shown below hero grid on selection screen -->
+    <div style="margin-top: 2.5rem; padding: 1.5rem 2rem; background: var(--color-surface); border: 2px solid var(--color-border); max-width: 600px; margin-left: auto; margin-right: auto; margin-top: 2.5rem;">
+      <h2 style="font-family: var(--font-display); font-size: clamp(0.7rem, 2vw, 1rem); color: var(--color-text); margin-bottom: 0.75rem; letter-spacing: 0.05em;">準備好踏上冒險了嗎？</h2>
+      <p style="color: var(--color-text-muted); line-height: 1.8; font-size: 0.95rem;">選擇你的起始職業，開始一段獨一無二的成長之旅。每一次轉職，都是一次蛻變。</p>
     </div>
   </div>
 </section>
