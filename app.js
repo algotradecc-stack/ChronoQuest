@@ -444,18 +444,28 @@ function showClassLevelUpModal(state, newClassLevel) {
         const hero2     = CQ.heroes[fresh.hero.heroId];
         const hGender   = hero2 ? hero2.gender : 'male';
         const baseOk    = !isBase || isBase.gender === hGender || isBase.gender === 'any' || hGender === 'other';
+        // Snapshot player XP before any promotion saves
+        const _savedXP = JSON.parse(JSON.stringify(fresh.xp || { total: 0, level: 1, title: '' }));
         if (isBase && baseOk) {
           fresh.character.currentClass = choice;
           fresh.character.classLevel   = 1;
           fresh.character.classXP      = 0;
           if (!fresh.character.unlockedClasses[choice]) fresh.character.unlockedClasses[choice] = 1;
+          fresh.xp = _savedXP; // ensure xp not lost
           SM.save(fresh);
         } else if (!isBase) {
           SM.promote(fresh, choice);
+          // SM.promote may overwrite xp — patch it back
+          const _afterPromote = SM.load();
+          if (_afterPromote) {
+            _afterPromote.xp = _savedXP;
+            SM.save(_afterPromote);
+          }
         }
       }
       overlay.remove();
-      updateHUD(fresh); updateStatus(fresh);
+      const _freshFinal = SM.load() || fresh;
+      updateHUD(_freshFinal); updateStatus(_freshFinal);
       renderClassTree();
       renderHeroesSection();
     });
