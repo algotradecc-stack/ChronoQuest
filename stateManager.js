@@ -4,15 +4,12 @@
 // ============================================
 const SM = (function () {
 
-const STORAGE_KEY    = 'cq_player_v1';    // active hero slot (character/class)
-const HEROES_KEY     = 'cq_heroes_v1';    // all hero slots { heroId: state }
-const PLAYER_XP_KEY  = 'cq_xp_v1';       // shared player XP across all heroes
+const STORAGE_KEY    = 'cq_player_v1';
+const HEROES_KEY     = 'cq_heroes_v1';
+const PLAYER_XP_KEY  = 'cq_xp_v1';
 const VERSION = '1.0';
 
-// XP thresholds per level — shared shape for both pools
-// Hero pool uses CQ.xpLevels; class pool uses CQ.classLevels (simpler ladder)
 const CLASS_XP = [0, 50, 120, 210, 320, 450, 600, 770, 960, 1170, 1400];
-// index = classLevel, value = total classXP needed
 
 function createDefaultState(heroIdx) {
   const hero = CQ.heroes[heroIdx];
@@ -23,13 +20,12 @@ function createDefaultState(heroIdx) {
     character: {
       currentClass: firstClass,
       classLevel: 1,
-      classXP: 0,              // separate class XP pool
+      classXP: 0,
       unlockedClasses: { [firstClass]: 1 }
     },
-    // xp is shared/global — stored separately in PLAYER_XP_KEY
     progress: {
-      heroTasksDone: [],        // tracks hero task completions this cycle
-      classTasksDone: [],       // tracks class task completions this cycle
+      heroTasksDone: [],
+      classTasksDone: [],
       lastReset: new Date().toISOString().slice(0, 10)
     }
   };
@@ -41,12 +37,10 @@ function load() {
     if (!raw) return null;
     const state = JSON.parse(raw);
     if (state.meta.version !== VERSION) return null;
-    // Migrate old saves that lack separate pools
     if (!state.character.classXP) state.character.classXP = 0;
     if (!state.progress.heroTasksDone) state.progress.heroTasksDone = state.progress.dailyTasksDone || [];
     if (!state.progress.classTasksDone) state.progress.classTasksDone = [];
     if (!state.progress.lastReset) state.progress.lastReset = new Date().toISOString().slice(0, 10);
-    // Merge shared player XP into state object so app.js can read state.xp
     state.xp = _loadPlayerXP();
     return state;
   } catch (e) { console.warn('[SM] load error:', e); return null; }
@@ -72,15 +66,13 @@ function save(state) {
   catch (e) { console.warn('[SM] save error:', e); }
 }
 
-function reset() { localStorage.removeItem(STORAGE_KEY); }
-
 function startNewGame(heroIdx) {
   const state = createDefaultState(heroIdx);
-  state.xp = _loadPlayerXP(); // shared xp persists even on new hero start
+  state.xp = _loadPlayerXP();
   save(state); return state;
 }
 
-// ── Shared Player XP (global across all heroes) ──────────────────────────────
+// ── Shared Player XP ──────────────────────────────────────────────────────────
 function _loadPlayerXP() {
   try {
     const raw = localStorage.getItem(PLAYER_XP_KEY);
@@ -105,7 +97,7 @@ function addHeroXP(state, amount) {
   xp.level = newLevel;
   xp.title = levels[newLevel - 1].title;
   _savePlayerXP(xp);
-  state.xp = xp; // keep in-memory state in sync
+  state.xp = xp;
   save(state);
   return { state, leveledUp };
 }
@@ -127,7 +119,6 @@ function addClassXP(state, amount) {
   const thresholds = CLASS_XP;
   const maxLevel = thresholds.length - 1;
   let newLevel = state.character.classLevel;
-  // Check if we've crossed the next threshold
   while (newLevel < maxLevel && state.character.classXP >= thresholds[newLevel + 1]) {
     newLevel++;
   }
@@ -152,7 +143,7 @@ function getClassXPProgress(state) {
   return { pct, current: xp, next: nextReq };
 }
 
-// ── Task reset: when all tasks in a pool are ticked, reset that pool ──────────
+// ── Task pool auto-reset ───────────────────────────────────────────────────────
 function _resetPoolIfAllDone(state, pool, tasks) {
   const allDone = tasks.every(t => state.progress[pool].includes(t.id));
   if (allDone) {
@@ -170,7 +161,6 @@ function completeHeroTask(state, taskId) {
   if (state.progress.heroTasksDone.includes(taskId)) return { alreadyDone: true };
   state.progress.heroTasksDone.push(taskId);
   const result = addHeroXP(state, task.xp);
-  // Auto-reset if all ticked
   _resetPoolIfAllDone(state, 'heroTasksDone', CQ.heroTasks);
   return { ...result, task };
 }
@@ -186,7 +176,6 @@ function completeClassTask(state, taskId) {
   if (state.progress.classTasksDone.includes(taskId)) return { alreadyDone: true };
   state.progress.classTasksDone.push(taskId);
   const result = addClassXP(state, task.xp);
-  // Auto-reset if all ticked
   _resetPoolIfAllDone(state, 'classTasksDone', CQ.classTasks);
   return { ...result, task };
 }
@@ -196,6 +185,7 @@ function getClassTaskStatus(state) {
 }
 
 // ── Promotion logic ───────────────────────────────────────────────────────────
+// FIX: corrected regex literals (\s and \d, not \\s and \\d)
 function _parseReq(reqStr) {
   if (!reqStr || reqStr === '基礎職業') return [];
   return reqStr.split('+').map(s => s.trim()).map(part => {
@@ -215,8 +205,6 @@ function canPromote(state, targetClass) {
   const reqs = _parseReq(tag);
   if (reqs.length === 0) return false;
 
-  // Gender check: class gender must match hero gender
-  // Exceptions: gender:'any', hero gender:'other', or class has no gender set
   const hero = CQ.heroes[state.hero.heroId];
   const heroGender = hero ? hero.gender : 'male';
   if (heroGender !== 'other'
@@ -235,7 +223,6 @@ function getAvailablePromotions(state) {
   return CQ.classes
     .filter(c => {
       if (c.name === state.character.currentClass) return false;
-      // Include if requirements met (new promotion) OR already previously unlocked (resume)
       return canPromote(state, c.name) || (unlocked[c.name] && unlocked[c.name] > 0);
     })
     .filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i)
@@ -247,7 +234,6 @@ function promote(state, targetClass) {
   if (!isResume && !canPromote(state, targetClass)) return false;
   state.character.currentClass = targetClass;
   if (isResume) {
-    // Restore previously saved level; recalculate classXP to match that level's threshold
     const savedLevel = state.character.unlockedClasses[targetClass];
     state.character.classLevel = savedLevel;
     state.character.classXP   = CLASS_XP[savedLevel] || 0;
@@ -269,41 +255,33 @@ function _saveAllSlots(slots) {
   catch(e) { console.warn('[SM] slot save error:', e); }
 }
 
-// Save current active state into its hero slot
 function saveToSlot(state) {
   const slots = _loadAllSlots();
   slots[state.hero.heroId] = state;
   _saveAllSlots(slots);
 }
 
-// Get saved state for a specific heroId (null if never played)
 function getHeroSlot(heroId) {
   const slots = _loadAllSlots();
   return slots[heroId] || null;
 }
 
-// Get all hero slots summary for display
 function getAllHeroSlots() {
   const slots = _loadAllSlots();
   return CQ.heroes.map((hero, idx) => ({
-    heroId:       idx,
-    name:         hero.name,
-    icon:         hero.icon,
-    badge:        hero.badge,
-    gender:       hero.gender,
-    basePath:     hero.basePath,
-    isActive:     false, // caller sets this
-    savedState:   slots[idx] || null,
+    heroId:     idx,
+    name:       hero.name,
+    icon:       hero.icon,
+    badge:      hero.badge,
+    gender:     hero.gender,
+    basePath:   hero.basePath,
+    isActive:   false,
+    savedState: slots[idx] || null,
   }));
 }
 
-// Switch to a different hero — saves current state to slot, loads target slot
 function switchHero(currentState, targetHeroId) {
-  // Save current hero's state to their slot
-  if (currentState) {
-    saveToSlot(currentState);
-  }
-  // Load target hero's saved slot, or create fresh state
+  if (currentState) saveToSlot(currentState);
   const existing = getHeroSlot(targetHeroId);
   let newState;
   if (existing) {
@@ -312,13 +290,11 @@ function switchHero(currentState, targetHeroId) {
   } else {
     newState = createDefaultState(targetHeroId);
   }
-  // Always inject shared player XP (not per-hero)
   newState.xp = _loadPlayerXP();
-  save(newState); // write to active slot
+  save(newState);
   return newState;
 }
 
-// Full reset: clears ALL hero slots + active slot + shared player XP
 function resetAll() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(HEROES_KEY);

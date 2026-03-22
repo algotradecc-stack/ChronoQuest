@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHeroSelection();
   }
 
+  // Expose showGame/showHeroSelection globally so outer functions can call them
+  window._cqShowGame = showGame;
+  window._cqShowHeroSelection = showHeroSelection;
+
   const resetBtn = document.getElementById('hud-reset-btn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
@@ -77,9 +81,11 @@ function renderHeroSelection() {
       if (s) s.style.display = 'none';
       if (m) m.style.display = 'block';
       if (h) h.classList.remove('hidden');
-      updateHUD(st); updateStatus(st);
+      updateHUD(st);
+      updateStatus(st);
       renderClassTree();
       renderHeroesSection();
+      renderPlayerDashboard();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     grid.appendChild(card);
@@ -92,17 +98,15 @@ function renderHeroSelection() {
 function updateHUD(state) {
   if (!state) return;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('hud-hero-name',     state.hero.name);
-  set('hud-hero-icon',     state.hero.icon);
-  set('hud-hero-badge',    state.hero.badge);
-  set('hud-current-class', state.character.currentClass);
-  set('hud-class-level',   `Lv.${state.character.classLevel}`);
-  set('hud-xp-level',      `Lv.${state.xp.level}`);
-  set('hud-xp-title',      state.xp.title);
-  set('hud-level',         `Lv.${state.xp.level} ${state.xp.title}`);
-  set('hud-xp-label',      `${state.xp.total} XP`);
+
+  set('hud-hero-name', state.hero.name);
+  set('hud-hero-icon', state.hero.icon);
+  set('hud-level',     `Lv.${state.xp.level} ${state.xp.title}`);
+  set('hud-xp-label',  `${state.xp.total} XP`);
+
   const hudClass = document.getElementById('hud-class');
   if (hudClass) hudClass.textContent = `${state.character.currentClass} Lv.${state.character.classLevel}`;
+
   const prog = SM.getHeroXPProgress(state);
   const xpBar  = document.getElementById('hud-xp-bar');
   const xpText = document.getElementById('hud-xp-text');
@@ -130,9 +134,8 @@ function updateStatus(state) {
   if (!state) return;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-  set('status-hero-icon',  state.hero.icon);
-  set('status-hero-name',  state.hero.name);
-  set('status-hero-badge', state.hero.badge);
+  set('status-hero-icon', state.hero.icon);
+  set('status-hero-name', state.hero.name);
   const heroData = CQ.heroes[state.hero.heroId];
   if (heroData) set('status-hero-desc', heroData.desc);
 
@@ -142,7 +145,6 @@ function updateStatus(state) {
   if (classData) {
     set('status-class-weapon', classData.weapon || '');
     set('status-class-desc',   classData.desc   || '');
-    set('status-class-tag',    classData.tag    || '');
   }
 
   // Class image
@@ -161,8 +163,6 @@ function updateStatus(state) {
       }
     };
   }
-
-  set('status-hero-path', state.hero.basePath);
 
   // ── Hero XP bar ──
   const heroLevelTitle = document.getElementById('xp-level-title');
@@ -256,61 +256,81 @@ function renderClassTasks(state) {
 
 // ============================================
 // Class Level-Up / Promotion Modal
+// (single canonical definition — with branch-switch support)
 // ============================================
 function showClassLevelUpModal(state, newClassLevel) {
-  // Remove any existing modal
-  const existing = document.getElementById('class-levelup-overlay');
-  if (existing) existing.remove();
+  document.querySelectorAll('#class-levelup-overlay').forEach(e => e.remove());
 
-  const available = SM.getAvailablePromotions(state);
+  const available    = SM.getAvailablePromotions(state);
   const currentClass = state.character.currentClass;
-  const classData = CQ.classes ? CQ.classes.find(c => c.name === currentClass) : null;
-  const classIcon = classData ? classData.icon : '⚔';
+  const classData    = CQ.classes ? CQ.classes.find(c => c.name === currentClass) : null;
+  const classIcon    = classData ? classData.icon : '⚔';
 
-  const overlay = document.createElement('div');
-  overlay.id = 'class-levelup-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;';
+  const hero       = CQ.heroes[state.hero.heroId];
+  const heroGender = hero ? hero.gender : 'male';
+  const magicBases = CQ.classes.filter(c => c.tag === '基礎職業' && c.branch === 'magic'
+                       && (heroGender === 'other' || c.gender === heroGender || c.gender === 'any'));
+  const physBases  = CQ.classes.filter(c => c.tag === '基礎職業' && c.branch === 'physical'
+                       && (heroGender === 'other' || c.gender === heroGender || c.gender === 'any'));
+  const isPhysical  = classData && classData.branch === 'physical';
+  const switchBases = isPhysical ? magicBases : physBases;
 
-  // ── Option: Stay ──
   let optionsHTML = `
-    <div class="promo-opt" data-choice="stay" style="border:1px solid var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left;">
+    <div class="promo-opt" data-choice="stay" style="border:1px solid var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
       <span style="font-size:1.4rem">${classIcon}</span>
       <strong style="margin-left:0.5rem">${currentClass}</strong>
       <span style="font-size:0.8rem;color:var(--color-primary);margin-left:0.5rem">Lv.${newClassLevel} ✔ 繼續深化</span>
-      <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">留在現有職業，穩紮穩打地提升等級。</p>
-    </div>
-  `;
+      <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">留在現有職業，穩紮穩打提升等級。</p>
+    </div>`;
 
-  // ── Options: eligible promotions ──
-  if (available.length > 0) {
-    available.forEach(cls => {
-      const cd = CQ.classes ? CQ.classes.find(c => c.name === cls) : null;
-      const icon = cd ? cd.icon : '✨';
-      const desc = cd ? cd.desc : '';
-      const tag  = cd ? cd.tag  : '';
+  available.forEach(cls => {
+    const cd       = CQ.classes.find(c => c.name === cls);
+    const icon     = cd ? cd.icon : '✨';
+    const isHid    = cd && (cd.hidden || cd.branch === 'hidden');
+    const prevLvl  = state.character.unlockedClasses[cls] || 0;
+    const isResume = prevLvl > 0;
+    const resumeBadge = isResume
+      ? `<span style="font-size:0.72rem;background:var(--color-gold);color:#000;padding:0.1rem 0.4rem;border-radius:3px;margin-left:0.4rem">↩ 繼續 Lv.${prevLvl}</span>`
+      : '';
+    optionsHTML += `
+      <div class="promo-opt" data-choice="${cls}" style="border:1px solid ${isResume ? 'var(--color-gold)' : 'var(--color-border)'};border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
+        <span style="font-size:1.4rem">${icon}${isHid ? ' 🌟' : ''}</span>
+        <strong style="margin-left:0.5rem">${cls}</strong>
+        ${resumeBadge}
+        <span style="font-size:0.75rem;color:var(--color-text-muted);margin-left:0.5rem">${cd ? cd.tag : ''}</span>
+        <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">${isResume ? `將從 Lv.${prevLvl} 繼續成長。` : (cd ? cd.desc : '')}</p>
+      </div>`;
+  });
+
+  if (switchBases.length) {
+    optionsHTML += `<div style="font-size:0.78rem;color:var(--color-text-muted);margin:0.5rem 0 0.4rem;border-top:1px solid var(--color-border);padding-top:0.75rem">── 轉換系別 ──</div>`;
+    switchBases.forEach(base => {
       optionsHTML += `
-        <div class="promo-opt" data-choice="${cls}" style="border:1px solid var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left;">
-          <span style="font-size:1.4rem">${icon}</span>
-          <strong style="margin-left:0.5rem">${cls}</strong>
-          <span style="font-size:0.75rem;color:var(--color-gold);margin-left:0.5rem">${tag}</span>
-          <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">${desc}</p>
-        </div>
-      `;
+        <div class="promo-opt" data-choice="${base.name}" style="border:1px dashed var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
+          <span style="font-size:1.4rem">${base.icon}</span>
+          <strong style="margin-left:0.5rem">${base.name}</strong>
+          <span style="font-size:0.75rem;color:var(--color-text-muted);margin-left:0.5rem">基礎職業・Lv.1 重新開始</span>
+          <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">${base.desc}</p>
+        </div>`;
     });
-  } else {
-    optionsHTML += `<p style="font-size:0.85rem;color:var(--color-text-muted);text-align:center;margin-top:0.5rem">尚未達到任何轉職條件，繼續累積等級！</p>`;
   }
 
+  if (available.length === 0 && switchBases.length === 0) {
+    optionsHTML += `<p style="font-size:0.84rem;color:var(--color-text-muted);text-align:center">尚未達到其他轉職條件，繼續累積等級！</p>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'class-levelup-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;overflow-y:auto';
   overlay.innerHTML = `
-    <div style="background:var(--color-surface);border:2px solid var(--color-primary);border-radius:8px;padding:2rem;max-width:460px;width:100%;font-family:var(--font-body);">
+    <div style="background:var(--color-surface);border:2px solid var(--color-primary);border-radius:8px;padding:2rem;max-width:480px;width:100%;font-family:var(--font-body);max-height:90vh;overflow-y:auto">
       <div style="text-align:center;margin-bottom:1.25rem">
         <div style="font-size:2.5rem">🎉</div>
         <h2 style="font-family:var(--font-display);color:var(--color-primary);margin:0.25rem 0">職業等級提升！</h2>
-        <p style="color:var(--color-text-muted);font-size:0.88rem;margin:0">選擇留在目前職業，或轉換至已解鎖的新職業。</p>
+        <p style="color:var(--color-text-muted);font-size:0.88rem;margin:0">選擇留在目前職業，轉換職業，或改走不同系別。</p>
       </div>
       <div id="promo-options">${optionsHTML}</div>
-    </div>
-  `;
+    </div>`;
 
   document.body.appendChild(overlay);
 
@@ -319,16 +339,32 @@ function showClassLevelUpModal(state, newClassLevel) {
     opt.addEventListener('mouseleave', () => { opt.style.borderColor = 'var(--color-border)'; opt.style.background = ''; });
     opt.addEventListener('click', () => {
       const choice = opt.dataset.choice;
-      const fresh = SM.load(); if (!fresh) return;
-      if (choice !== 'stay') SM.promote(fresh, choice);
+      const fresh  = SM.load(); if (!fresh) return;
+      if (choice !== 'stay') {
+        const isBase    = CQ.classes.find(c => c.name === choice && c.tag === '基礎職業');
+        const hero2     = CQ.heroes[fresh.hero.heroId];
+        const hGender   = hero2 ? hero2.gender : 'male';
+        const baseOk    = !isBase || isBase.gender === hGender || isBase.gender === 'any' || hGender === 'other';
+        if (isBase && baseOk) {
+          fresh.character.currentClass = choice;
+          fresh.character.classLevel   = 1;
+          fresh.character.classXP      = 0;
+          if (!fresh.character.unlockedClasses[choice]) fresh.character.unlockedClasses[choice] = 1;
+          SM.save(fresh);
+        } else if (!isBase) {
+          SM.promote(fresh, choice);
+        }
+      }
       overlay.remove();
       updateHUD(fresh); updateStatus(fresh);
+      renderClassTree();
+      renderHeroesSection();
     });
   });
 }
 
 // ============================================
-// Class Tree — fully dynamic, replaces static HTML
+// Class Tree — fully dynamic
 // ============================================
 function renderClassTree() {
   const container = document.getElementById('class-tree-container');
@@ -338,7 +374,6 @@ function renderClassTree() {
   const unlocked = state ? state.character.unlockedClasses : {};
   const current  = state ? state.character.currentClass   : null;
 
-  // Safely resolve hero gender — fallback chain: heroId → hero.gender → 'male'
   let heroGender = 'male';
   let heroIdx    = -1;
   if (state && state.hero) {
@@ -347,7 +382,6 @@ function renderClassTree() {
     if (hero && hero.gender) heroGender = hero.gender;
   }
 
-  // Hidden classes belonging to THIS hero only
   const heroHiddenNames = new Set();
   if (heroIdx >= 0 && CQ.heroes[heroIdx]) {
     (CQ.heroes[heroIdx].hidden || []).forEach(h => heroHiddenNames.add(h.name));
@@ -426,9 +460,8 @@ function renderClassTree() {
   });
 }
 
-
 // ============================================
-// Class Info Popup (on tree node click)
+// Class Info Popup
 // ============================================
 function showClassInfoPopup(className, state, anchorEl) {
   document.querySelectorAll('.class-info-popup').forEach(p => p.remove());
@@ -436,18 +469,18 @@ function showClassInfoPopup(className, state, anchorEl) {
   const classData = CQ.classes.find(c => c.name === className);
   if (!classData) return;
 
-  const unlocked    = state ? (state.character.unlockedClasses[className] || 0) : 0;
-  const isCurrent   = state ? state.character.currentClass === className : false;
-  const canChange   = state ? SM.canPromote(state, className) : false;
-  const tag         = classData.tag || '基礎職業';
-  const isBase      = tag === '基礎職業';
+  const unlocked  = state ? (state.character.unlockedClasses[className] || 0) : 0;
+  const isCurrent = state ? state.character.currentClass === className : false;
+  const canChange = state ? SM.canPromote(state, className) : false;
+  const tag       = classData.tag || '基礎職業';
+  const isBase    = tag === '基礎職業';
 
   let statusLabel = '', statusColor = 'var(--color-text-muted)';
-  if (isCurrent)       { statusLabel = '▶ 目前職業';       statusColor = 'var(--color-primary)'; }
-  else if (unlocked)   { statusLabel = `已解鎖 Lv.${unlocked}`; statusColor = 'var(--color-gold)'; }
-  else if (canChange)  { statusLabel = '✅ 可立即轉職';     statusColor = '#4caf50'; }
-  else if (isBase)     { statusLabel = '基礎職業';          statusColor = 'var(--color-text-muted)'; }
-  else                 { statusLabel = `🔒 需要：${tag}`;   statusColor = '#e57373'; }
+  if (isCurrent)      { statusLabel = '▶ 目前職業';           statusColor = 'var(--color-primary)'; }
+  else if (unlocked)  { statusLabel = `已解鎖 Lv.${unlocked}`; statusColor = 'var(--color-gold)'; }
+  else if (canChange) { statusLabel = '✅ 可立即轉職';          statusColor = '#4caf50'; }
+  else if (isBase)    { statusLabel = '基礎職業';              statusColor = 'var(--color-text-muted)'; }
+  else                { statusLabel = `🔒 需要：${tag}`;       statusColor = '#e57373'; }
 
   const popup = document.createElement('div');
   popup.className = 'class-info-popup';
@@ -485,7 +518,6 @@ function showClassInfoPopup(className, state, anchorEl) {
     ">關閉</button>
   `;
 
-  // Position smartly near anchor
   const rect = anchorEl.getBoundingClientRect();
   let top  = rect.bottom + 8;
   let left = rect.left;
@@ -503,7 +535,7 @@ function showClassInfoPopup(className, state, anchorEl) {
       if (SM.promote(fresh, className)) {
         popup.remove();
         updateHUD(fresh); updateStatus(fresh);
-        renderClassTree(); // refresh tree lock states
+        renderClassTree();
       }
     });
   }
@@ -515,7 +547,7 @@ function showClassInfoPopup(className, state, anchorEl) {
 }
 
 // ============================================
-// Heroes Section — dynamic cards + detail modal
+// Heroes Section
 // ============================================
 function renderHeroesSection() {
   const grid = document.getElementById('heroes-grid');
@@ -532,7 +564,7 @@ function renderHeroesSection() {
       cursor:pointer;padding:1.25rem 1rem;text-align:center;
       border:2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'};
       border-radius:8px;transition:transform 0.2s,border-color 0.2s;
-      background:${isActive ? 'rgba(var(--color-primary-rgb,100,180,255),0.08)' : 'transparent'};
+      background:${isActive ? 'rgba(100,180,255,0.08)' : 'transparent'};
     `;
     card.innerHTML = `
       <div style="font-size:2.2rem">${hero.icon}</div>
@@ -550,7 +582,6 @@ function renderHeroesSection() {
 function showHeroDetailModal(hero, heroIdx, state) {
   document.querySelectorAll('.hero-detail-modal').forEach(m => m.remove());
 
-  // Collect achieved classes: from active state OR saved slot for inactive heroes
   const isActiveHero = state && state.hero.heroId === heroIdx;
   let unlocked = {};
   if (isActiveHero) {
@@ -560,12 +591,8 @@ function showHeroDetailModal(hero, heroIdx, state) {
     unlocked = slot ? slot.character.unlockedClasses : {};
   }
   const achievedClasses = Object.entries(unlocked).filter(([,lvl]) => lvl > 0);
+  const hiddenClasses   = hero.hidden || [];
 
-  // Collect all classes reachable by this hero (basePath + hidden)
-  const pathClasses = hero.basePath.split(/[→\/]/).map(s => s.trim()).filter(Boolean);
-  const hiddenClasses = hero.hidden || [];
-
-  // Stats bar helper
   const statBar = (label, val) => `
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;font-size:0.82rem">
       <span style="width:3rem;color:var(--color-text-muted)">${label}</span>
@@ -609,14 +636,11 @@ function showHeroDetailModal(hero, heroIdx, state) {
           ${isActiveHero ? '<span style="font-size:0.75rem;color:var(--color-primary);margin-left:0.5rem">▶ 使用中</span>' : ''}
         </div>
       </div>
-
       <p style="line-height:1.7;margin-bottom:1rem">${hero.desc}</p>
-
       <div style="margin-bottom:1rem">
         <div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:0.5rem">基本轉職路線</div>
         <div style="font-weight:600;color:var(--color-gold)">${hero.basePath}</div>
       </div>
-
       ${Object.keys(stats).length ? `
       <div style="margin-bottom:1rem">
         <div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:0.5rem">能力值</div>
@@ -626,18 +650,15 @@ function showHeroDetailModal(hero, heroIdx, state) {
         ${statBar('WIS', stats.WIS||0)}
         ${statBar('CHA', stats.CHA||0)}
       </div>` : ''}
-
       <div style="margin-bottom:1rem">
         <div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:0.5rem">已達成職業</div>
         <div>${achievedHTML}</div>
       </div>
-
       ${hiddenHTML ? `
       <div style="margin-bottom:1rem">
         <div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:0.5rem">隱藏職業</div>
         ${hiddenHTML}
       </div>` : ''}
-
       <button id="hero-modal-close" style="
         width:100%;padding:0.6rem;margin-top:0.5rem;
         background:transparent;color:var(--color-text-muted);
@@ -653,125 +674,12 @@ function showHeroDetailModal(hero, heroIdx, state) {
 }
 
 // ============================================
-// Class Level-Up Modal — with magic branch option
-// ============================================
-function showClassLevelUpModal(state, newClassLevel) {
-  document.querySelectorAll('#class-levelup-overlay').forEach(e => e.remove());
-
-  const available   = SM.getAvailablePromotions(state);
-  const currentClass = state.character.currentClass;
-  const classData   = CQ.classes ? CQ.classes.find(c => c.name === currentClass) : null;
-  const classIcon   = classData ? classData.icon : '⚔';
-
-  // Find magic base classes for branch-switch option — filtered by hero gender
-  const hero        = CQ.heroes[state.hero.heroId];
-  const heroGender  = hero ? hero.gender : 'male';
-  const magicBases  = CQ.classes.filter(c => c.tag === '基礎職業' && c.branch === 'magic'
-                        && (heroGender === 'other' || c.gender === heroGender || c.gender === 'any'));
-  const physBases   = CQ.classes.filter(c => c.tag === '基礎職業' && c.branch === 'physical'
-                        && (heroGender === 'other' || c.gender === heroGender || c.gender === 'any'));
-  const isPhysical  = classData && classData.branch === 'physical';
-  const switchBases = isPhysical ? magicBases : physBases;
-
-  let optionsHTML = `
-    <div class="promo-opt" data-choice="stay" style="border:1px solid var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
-      <span style="font-size:1.4rem">${classIcon}</span>
-      <strong style="margin-left:0.5rem">${currentClass}</strong>
-      <span style="font-size:0.8rem;color:var(--color-primary);margin-left:0.5rem">Lv.${newClassLevel} ✔ 繼續深化</span>
-      <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">留在現有職業，穩紮穩打提升等級。</p>
-    </div>`;
-
-  // Eligible promotions in same branch
-  available.forEach(cls => {
-    const cd      = CQ.classes.find(c => c.name === cls);
-    const icon    = cd ? cd.icon : '✨';
-    const isHid   = cd && (cd.hidden || cd.branch === 'hidden');
-    const prevLvl = state.character.unlockedClasses[cls] || 0;
-    const isResume = prevLvl > 0;
-    const resumeBadge = isResume
-      ? `<span style="font-size:0.72rem;background:var(--color-gold);color:#000;padding:0.1rem 0.4rem;border-radius:3px;margin-left:0.4rem">↩ 繼續 Lv.${prevLvl}</span>`
-      : '';
-    optionsHTML += `
-      <div class="promo-opt" data-choice="${cls}" style="border:1px solid ${isResume ? 'var(--color-gold)' : 'var(--color-border)'};border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
-        <span style="font-size:1.4rem">${icon}${isHid ? ' 🌟' : ''}</span>
-        <strong style="margin-left:0.5rem">${cls}</strong>
-        ${resumeBadge}
-        <span style="font-size:0.75rem;color:var(--color-text-muted);margin-left:0.5rem">${cd ? cd.tag : ''}</span>
-        <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">${isResume ? `將從 Lv.${prevLvl} 繼續成長。` : (cd ? cd.desc : '')}</p>
-      </div>`;
-  });
-
-  // Branch-switch option (magic ↔ physical)
-  if (switchBases.length) {
-    optionsHTML += `<div style="font-size:0.78rem;color:var(--color-text-muted);margin:0.5rem 0 0.4rem;border-top:1px solid var(--color-border);padding-top:0.75rem">── 轉換系別 ──</div>`;
-    switchBases.forEach(base => {
-      optionsHTML += `
-        <div class="promo-opt" data-choice="${base.name}" style="border:1px dashed var(--color-border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;cursor:pointer;transition:border-color 0.2s,background 0.2s;text-align:left">
-          <span style="font-size:1.4rem">${base.icon}</span>
-          <strong style="margin-left:0.5rem">${base.name}</strong>
-          <span style="font-size:0.75rem;color:var(--color-text-muted);margin-left:0.5rem">基礎職業・Lv.1 重新開始</span>
-          <p style="font-size:0.82rem;color:var(--color-text-muted);margin:0.3rem 0 0">${base.desc}</p>
-        </div>`;
-    });
-  }
-
-  if (available.length === 0 && switchBases.length === 0) {
-    optionsHTML += `<p style="font-size:0.84rem;color:var(--color-text-muted);text-align:center">尚未達到其他轉職條件，繼續累積等級！</p>`;
-  }
-
-  const overlay = document.createElement('div');
-  overlay.id = 'class-levelup-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;overflow-y:auto';
-  overlay.innerHTML = `
-    <div style="background:var(--color-surface);border:2px solid var(--color-primary);border-radius:8px;padding:2rem;max-width:480px;width:100%;font-family:var(--font-body);max-height:90vh;overflow-y:auto">
-      <div style="text-align:center;margin-bottom:1.25rem">
-        <div style="font-size:2.5rem">🎉</div>
-        <h2 style="font-family:var(--font-display);color:var(--color-primary);margin:0.25rem 0">職業等級提升！</h2>
-        <p style="color:var(--color-text-muted);font-size:0.88rem;margin:0">選擇留在目前職業，轉換職業，或改走不同系別。</p>
-      </div>
-      <div id="promo-options">${optionsHTML}</div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-
-  overlay.querySelectorAll('.promo-opt').forEach(opt => {
-    opt.addEventListener('mouseenter', () => { opt.style.borderColor = 'var(--color-primary)'; opt.style.background = 'rgba(255,255,255,0.05)'; });
-    opt.addEventListener('mouseleave', () => { opt.style.borderColor = opt.style.borderStyle === 'dashed' ? 'var(--color-border)' : 'var(--color-border)'; opt.style.background = ''; });
-    opt.addEventListener('click', () => {
-      const choice = opt.dataset.choice;
-      const fresh  = SM.load(); if (!fresh) return;
-      if (choice !== 'stay') {
-        // For base class branch switch: force-promote even without canPromote
-        const isBase = CQ.classes.find(c => c.name === choice && c.tag === '基礎職業');
-        const hero2  = CQ.heroes[fresh.hero.heroId];
-        const hGender = hero2 ? hero2.gender : 'male';
-        const baseGenderOk = !isBase || isBase.gender === hGender || isBase.gender === 'any' || hGender === 'other';
-        if (isBase && baseGenderOk) {
-          fresh.character.currentClass = choice;
-          fresh.character.classLevel   = 1;
-          fresh.character.classXP      = 0;
-          if (!fresh.character.unlockedClasses[choice]) fresh.character.unlockedClasses[choice] = 1;
-          SM.save(fresh);
-        } else if (!isBase) {
-          SM.promote(fresh, choice);
-        }
-      }
-      overlay.remove();
-      updateHUD(fresh); updateStatus(fresh);
-      renderClassTree();
-      renderHeroesSection();
-    });
-  });
-}
-
-
-// ============================================
 // Hero Switch Modal
 // ============================================
 function showHeroSwitchModal() {
   document.querySelectorAll('.hero-switch-modal').forEach(m => m.remove());
-  const state   = SM.load();
-  const slots   = SM.getAllHeroSlots();
+  const state    = SM.load();
+  const slots    = SM.getAllHeroSlots();
   const activeId = state ? state.hero.heroId : -1;
 
   const overlay = document.createElement('div');
@@ -782,8 +690,6 @@ function showHeroSwitchModal() {
     const isActive = slot.heroId === activeId;
     const saved    = slot.heroId === activeId ? state : SM.getHeroSlot(slot.heroId);
     const gIcon    = slot.gender === 'male' ? '♂' : slot.gender === 'female' ? '♀' : '✦';
-
-    // Build unlocked classes list (same as 英雄圖鑑)
     const unlocked = saved ? saved.character.unlockedClasses : {};
     const achievedClasses = Object.entries(unlocked).filter(([,lvl]) => lvl > 0);
     const currentCls = saved ? saved.character.currentClass : null;
@@ -837,7 +743,7 @@ function showHeroSwitchModal() {
     card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--color-primary)'; card.style.background = 'rgba(100,180,255,0.06)'; });
     card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--color-border)'; card.style.background = 'transparent'; });
     card.addEventListener('click', () => {
-      const current = SM.load();
+      const current  = SM.load();
       const newState = SM.switchHero(current, heroId);
       overlay.remove();
       updateHUD(newState);
@@ -845,7 +751,6 @@ function showHeroSwitchModal() {
       renderClassTree();
       renderHeroesSection();
       renderPlayerDashboard();
-      initXPTracker();
     });
   });
 
@@ -865,14 +770,12 @@ function renderPlayerDashboard() {
   const allBasic  = (CQ.classes || []).filter(c => !c.hidden && c.branch !== 'hidden');
   const totalHeroes = CQ.heroes.length;
 
-  // Count heroes played (have a saved slot)
   const heroesPlayed = allSlots.filter(s => s.savedState !== null).length;
 
-  // Aggregate all unlocked classes across ALL hero slots
-  const unlockedSet        = new Set();
-  const unlockedHiddenSet  = new Set();
-  const maxedClassesSet    = new Set();
-  const MAX_LEVEL          = 10; // Max class level
+  const unlockedSet       = new Set();
+  const unlockedHiddenSet = new Set();
+  const maxedClassesSet   = new Set();
+  const MAX_LEVEL         = 10;
 
   function processClasses(unlockedMap) {
     if (!unlockedMap) return;
@@ -884,57 +787,22 @@ function renderPlayerDashboard() {
         } else if (classData) {
           unlockedSet.add(cls);
         }
-        if (lvl >= MAX_LEVEL) {
-          maxedClassesSet.add(cls);
-        }
+        if (lvl >= MAX_LEVEL) maxedClassesSet.add(cls);
       }
     });
   }
 
-  // Count from saved slots
   allSlots.forEach(slot => {
     if (slot.savedState) processClasses(slot.savedState.character.unlockedClasses);
   });
-
-  // Count active hero's current state (overrides slot if fresher)
   const activeState = SM.load();
-  if (activeState) {
-    processClasses(activeState.character.unlockedClasses);
-  }
+  if (activeState) processClasses(activeState.character.unlockedClasses);
 
   const cards = [
-    {
-      icon: '⚔️',
-      label: '英雄冒險',
-      value: heroesPlayed,
-      total: totalHeroes,
-      sub: '已展開冒險的英雄',
-      color: 'var(--color-primary)'
-    },
-    {
-      icon: '🛡️',
-      label: '基本職業',
-      value: unlockedSet.size,
-      total: allBasic.length,
-      sub: '已解鎖職業',
-      color: 'var(--color-gold)'
-    },
-    {
-      icon: '✨',
-      label: '隱藏職業',
-      value: unlockedHiddenSet.size,
-      total: allHidden.length,
-      sub: '已解鎖隱藏職業',
-      color: '#c084fc'
-    },
-    {
-      icon: '👑',
-      label: '職業精通',
-      value: maxedClassesSet.size,
-      total: CQ.classes.length, // total possible classes to max
-      sub: `已達滿級 (Lv.${MAX_LEVEL})`,
-      color: '#f97316' // Fiery orange
-    }
+    { icon: '⚔️', label: '英雄冒險',  value: heroesPlayed,           total: totalHeroes,    sub: '已展開冒險的英雄',        color: 'var(--color-primary)' },
+    { icon: '🛡️', label: '基本職業',  value: unlockedSet.size,        total: allBasic.length, sub: '已解鎖職業',             color: 'var(--color-gold)' },
+    { icon: '✨',  label: '隱藏職業',  value: unlockedHiddenSet.size,  total: allHidden.length, sub: '已解鎖隱藏職業',         color: '#c084fc' },
+    { icon: '👑',  label: '職業精通',  value: maxedClassesSet.size,    total: CQ.classes.length, sub: `已達滿級 (Lv.${MAX_LEVEL})`, color: '#f97316' }
   ];
 
   container.innerHTML = cards.map(c => {
@@ -959,14 +827,3 @@ function renderPlayerDashboard() {
     </div>`;
   }).join('');
 }
-
-// ============================================
-// Boot hooks — call renderers after game loads
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    renderClassTree();
-    renderHeroesSection();
-    renderPlayerDashboard();
-  }, 200);
-});

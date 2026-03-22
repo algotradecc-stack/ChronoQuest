@@ -1,0 +1,48 @@
+==============================================
+ ChronoQuest v1.3 — Code Scan Package
+==============================================
+
+FILES INCLUDED IN THIS PACKAGE
+---------------------------------
+✅ app.js          — Cleaned up (see changes below)
+✅ stateManager.js — Bug fixed (see changes below)  
+✅ base.css        — Included (no changes needed)
+✅ README.md       — Updated with full v1.3 documentation
+✅ default_save.json — Reference default save file
+
+FILES NOT INCLUDED (unchanged, keep your existing copies)
+----------------------------------------------------------
+• index.html   — No changes needed
+• style.css    — No changes needed
+• data.js      — No changes needed
+• images/      — No changes needed
+
+==============================================
+ CHANGES SUMMARY
+==============================================
+
+[app.js] — 5 fixes applied
+  1. REMOVED duplicate first showClassLevelUpModal definition (dead code)
+  2. REMOVED second DOMContentLoaded block at bottom (redundant render calls)
+  3. REMOVED orphaned set() calls in updateHUD for non-existent IDs:
+       hud-hero-badge, hud-current-class, hud-class-level, hud-xp-level, hud-xp-title
+  4. FIXED hero selection click handler to also call renderPlayerDashboard()
+     (was missing, causing dashboard to stay empty after hero select)
+  5. EXPOSED showGame / showHeroSelection as window._cqShowGame / _cqShowHeroSelection
+     so outer-scoped functions can invoke them if needed
+
+[stateManager.js] — 1 real bug fixed
+  1. FIXED _parseReq() regex literals:
+       BEFORE: /^(.+?)\s+Lv\.(\d+)$/   ← wrong: literal backslash+s, backslash+d
+       AFTER:  /^(.+?)\s+Lv\.(\d+)$/     ← correct: whitespace and digit class
+     This bug caused canPromote() to silently fail on tags like "鬥劍士 Lv.2",
+     meaning promotions that should unlock never appeared.
+
+[README.md] — Fully rewritten
+  • Updated all API docs to v1.3 (dual XP pool, multi-hero slots)
+  • Added Boot Flow diagram
+  • Added full UI Sections table with element IDs
+  • Added Known Issues section
+  • Added Task & Reset System section
+
+==============================================
