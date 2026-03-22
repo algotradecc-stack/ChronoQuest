@@ -14,17 +14,14 @@
   "character": {
     "currentClass": "鬥劍士",
     "classLevel": 1,
+    "classXP": 0,
     "unlockedClasses": {
       "鬥劍士": 1
     }
   },
-  "xp": {
-    "total": 0,
-    "level": 1,
-    "title": "冒險者"
-  },
   "progress": {
-    "dailyTasksDone": [],
-    "lastDailyReset": "2026-03-21"
+    "heroTasksDone": [],
+    "classTasksDone": [],
+    "lastReset": "2026-03-21"
   }
 }
