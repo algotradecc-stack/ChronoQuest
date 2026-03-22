@@ -1,0 +1,37 @@
+HOW TO APPLY — Class Image Mobile Fix
+======================================
+
+1. REPLACE app.js
+   Copy ChronoQuest/app.js from this zip over your existing app.js.
+   Change: inline style overrides on #status-class-image and #status-image-placeholder
+           are removed so CSS fully controls sizing.
+
+2. ADD status-image-patch.css
+   Place ChronoQuest/status-image-patch.css in your project root.
+   Link it in index.html AFTER style.css:
+
+     <link rel="stylesheet" href="status-image-patch.css">
+
+3. WRAP the image in index.html
+   Find the element with id="status-class-image" and wrap it like this:
+
+   BEFORE:
+     <img id="status-class-image" ...>
+     <div id="status-image-placeholder">...</div>
+
+   AFTER:
+     <div class="status-class-image-wrap">
+       <img id="status-class-image" ...>
+       <div id="status-image-placeholder"></div>
+     </div>
+
+   If the section has a parent with class "status-class-section", the desktop
+   two-column grid will also kick in automatically at ≥768px.
+
+WHAT THIS FIXES (iPhone 14 Pro Max — 430×932 CSS px)
+------------------------------------------------------
+• Image now fills its container with object-fit:cover, no overflow or collapse
+• Square aspect-ratio box keeps layout stable even before image loads
+• Placeholder emoji is correctly centred in the same box
+• Full-bleed (no side borders) at ≤430px for edge-to-edge feel
+• Desktop: image sits in a 260px column beside the class text

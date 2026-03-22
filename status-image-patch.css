@@ -1,0 +1,72 @@
+
+/* ============================================================
+   STATUS CLASS IMAGE — Mobile-first fix for iPhone 14 Pro Max
+   (430px viewport)
+   ============================================================ */
+
+/* Wrapper that holds the image + placeholder together */
+.status-class-image-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;          /* always square */
+  max-width: 340px;              /* cap on larger screens */
+  margin: 0 auto var(--space-4);
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-dynamic);
+}
+
+#status-class-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;             /* fill box, crop if needed */
+  object-position: top center;  /* portrait images: keep face in frame */
+}
+
+#status-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: clamp(3rem, 18vw, 5rem);
+  color: var(--color-text-faint);
+}
+
+/* ── Narrow phones (≤ 430px  →  iPhone 14 Pro Max and below) ── */
+@media (max-width: 430px) {
+  .status-class-image-wrap {
+    max-width: 100%;             /* full bleed on tiny screens */
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+  }
+
+  #status-class-image {
+    object-position: top center;
+  }
+}
+
+/* ── Slightly wider phones (431px – 640px) ── */
+@media (min-width: 431px) and (max-width: 640px) {
+  .status-class-image-wrap {
+    max-width: 380px;
+  }
+}
+
+/* ── Tablet / desktop: two-column layout ── */
+@media (min-width: 768px) {
+  .status-class-section {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .status-class-image-wrap {
+    margin: 0;
+    max-width: 260px;
+  }
+}

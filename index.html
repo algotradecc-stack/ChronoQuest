@@ -9,7 +9,7 @@
 \____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
                     /_/
         Created with Perplexity Computer
-        https://www.perplexity.ai/computer
+        [https://www.perplexity.ai/computer](https://www.perplexity.ai/computer)
 -->
 <meta name="generator" content="Perplexity Computer">
 <meta name="author" content="Perplexity Computer">
@@ -25,6 +25,57 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./base.css">
 <link rel="stylesheet" href="./style.css">
+
+  <!-- STATUS IMAGE — image below text, full width, consistent height everywhere -->
+  <style>
+    .status-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Image box: always full width of its parent, fixed viewport-relative height */
+    .status-image-container {
+      position: relative;
+      width: 100%;
+      height: 56vw;           /* ~240px on iPhone 14 Pro Max (430px wide) */
+      max-height: 380px;      /* cap on wide screens */
+      min-height: 180px;
+      overflow: hidden;
+      background: var(--color-surface-dynamic);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md, 4px);
+    }
+
+    #status-class-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;  /* keep character face visible */
+    }
+
+    #status-image-placeholder {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(3rem, 12vw, 5rem);
+      color: var(--color-text-faint);
+    }
+
+    /* Full-bleed on narrow phones — no side borders */
+    @media (max-width: 430px) {
+      .status-image-container {
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        height: 52vw;         /* slightly shorter on tiny screens */
+        max-height: 260px;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -52,7 +103,6 @@
       <span class="hamburger-line"></span>
     </button>
     <nav class="nav" id="main-nav" role="navigation" aria-label="主導航">
-      
       <a href="#tree" class="nav-link">轉職路線</a>
       <a href="#heroes" class="nav-link">英雄圖鑑</a>
       <a href="#xp" class="nav-link">經驗追蹤</a>
@@ -109,19 +159,13 @@
       <p class="section-desc">你目前的英雄與職業詳情</p>
     </div>
 
-    <div class="status-layout" style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start;">
-      <!-- Image / Card side -->
-      <div class="status-image-container" style="background: var(--color-surface); border: 2px solid var(--color-border); padding: 1rem; text-align: center;">
-        <img id="status-class-image" src="" alt="職業圖片" style="max-width: 100%; height: auto; display: block; margin: 0 auto; min-height: 200px; background: var(--color-surface-dynamic);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-        <div id="status-image-placeholder" style="display: none; height: 200px; align-items: center; justify-content: center; color: var(--color-text-muted); border: 1px dashed var(--color-divider);">
-          暫無圖片
-        </div>
-      </div>
+    <!-- Status: text on top, image below — works perfectly on all screen sizes -->
+    <div class="status-layout" style="display: flex; flex-direction: column; gap: 1.5rem;">
 
-      <!-- Info side -->
+      <!-- Info: always on top -->
       <div class="status-info-container">
         <!-- Hero Info -->
-        <div style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-divider);">
+        <div style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider);">
           <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--color-primary);">
             <span id="status-hero-icon"></span> <span id="status-hero-name"></span>
           </h3>
@@ -137,6 +181,13 @@
           <p id="status-class-desc" style="color: var(--color-text); line-height: 1.6; font-size: 0.95rem;"></p>
         </div>
       </div>
+
+      <!-- Image: always below text, full width, fixed height -->
+      <div class="status-image-container">
+        <img id="status-class-image" src="" alt="職業圖片" style="display:none;">
+        <div id="status-image-placeholder">暫無圖片</div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -155,7 +206,6 @@
   </div>
 </section>
 
-
 <!-- Class Tree -->
 <section class="section section-alt" id="tree">
   <div class="container">
@@ -164,11 +214,7 @@
       <h2 class="section-title">轉職路線圖</h2>
       <p class="section-desc">每個職業都有獨特的轉職路線，選擇不同的分支將塑造截然不同的角色。部分高階職業需要同時滿足多個前置條件。</p>
     </div>
-
-    <!-- Physical Male Tree -->
-    <!-- Tree content rendered dynamically by app.js -->
     <div id="class-tree-container"></div>
-
   </div>
 </section>
 
@@ -246,7 +292,6 @@
         <div class="xp-levelup-flash" id="xp-levelup-flash">LEVEL UP!</div>
       </div>
 
-      <!-- Daily Quests -->
       <!-- Hero Tasks -->
       <h3 style="margin:1.5rem 0 0.75rem;font-family:var(--font-display)">🏆 英雄任務</h3>
       <div id="hero-tasks"></div>
@@ -278,12 +323,9 @@
     <div class="cta-box pixel-border">
       <h2 class="cta-title">準備好踏上冒險了嗎？</h2>
       <p class="cta-desc">選擇你的起始職業，開始一段獨一無二的成長之旅。每一次轉職，都是一次蛻變。</p>
-      
     </div>
   </div>
 </section>
-
-<!-- Footer -->
 
 </div>
 <footer class="footer">
