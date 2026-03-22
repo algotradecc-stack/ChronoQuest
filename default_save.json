@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "version": "1.0",
+    "createdAt": "2026-03-21T10:24:00.000Z",
+    "lastSeen": "2026-03-21T10:24:00.000Z"
+  },
+  "hero": {
+    "heroId": 0,
+    "name": "克荷林",
+    "icon": "⚔",
+    "badge": "劍系",
+    "basePath": "鬥劍士 → 劍客 → 大劍師"
+  },
+  "character": {
+    "currentClass": "鬥劍士",
+    "classLevel": 1,
+    "unlockedClasses": {
+      "鬥劍士": 1
+    }
+  },
+  "xp": {
+    "total": 0,
+    "level": 1,
+    "title": "冒險者"
+  },
+  "progress": {
+    "dailyTasksDone": [],
+    "lastDailyReset": "2026-03-21"
+  }
+}

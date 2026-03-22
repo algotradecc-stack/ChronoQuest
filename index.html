@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChronoQuest — 職業系統總覽</title>
+<meta name="description" content="ChronoQuest 遊戲化應用 — 以經典RPG轉職系統為靈感，探索14種基本職業與無限轉職可能">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./base.css">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="header" id="header">
+  <div class="header-inner">
+    <div class="logo">
+      <svg class="logo-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-label="ChronoQuest Logo">
+        <rect x="2" y="2" width="28" height="28" rx="4" stroke="currentColor" stroke-width="2"/>
+        <rect x="8" y="8" width="4" height="4" fill="var(--color-gold)"/>
+        <rect x="14" y="8" width="4" height="4" fill="var(--color-primary)"/>
+        <rect x="20" y="8" width="4" height="4" fill="var(--color-error)"/>
+        <rect x="8" y="14" width="4" height="4" fill="var(--color-primary)"/>
+        <rect x="14" y="14" width="4" height="4" fill="currentColor"/>
+        <rect x="20" y="14" width="4" height="4" fill="var(--color-gold)"/>
+        <rect x="8" y="20" width="4" height="4" fill="var(--color-error)"/>
+        <rect x="14" y="20" width="4" height="4" fill="var(--color-gold)"/>
+        <rect x="20" y="20" width="4" height="4" fill="var(--color-primary)"/>
+      </svg>
+      <span class="logo-text">ChronoQuest</span>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="開啟選單" aria-expanded="false">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+    <nav class="nav" id="main-nav" role="navigation" aria-label="主導航">
+      
+      <a href="#tree" class="nav-link">轉職路線</a>
+      <a href="#heroes" class="nav-link">英雄圖鑑</a>
+      <a href="#xp" class="nav-link">經驗追蹤</a>
+    </nav>
+    <button data-theme-toggle aria-label="切換深色/淺色模式" class="theme-toggle">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ============================================
+     HERO SELECT SECTION (shown on first visit)
+     ============================================ -->
+<section id="game-start-section" class="section">
+  <div class="container" style="text-align: center;">
+    <span class="section-tag pixel-border" style="margin: 0 auto 1rem;">START</span>
+    <h2 class="section-title">選擇你的初始英雄</h2>
+    <p style="color: var(--color-text-muted); margin-bottom: 2rem;">每位英雄擁有獨特的成長路線與隱藏職業。請選擇一位作為本次冒險的主角。</p>
+    <div id="hero-select-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; max-width: 900px; margin: 0 auto;">
+      <!-- Populated by app.js via CQ.heroes -->
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     PLAYER HUD (shown after hero selected)
+     ============================================ -->
+<div id="player-hud" class="player-hud hidden" style="position: sticky; top: 0; z-index: 1000; background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 1rem; margin-bottom: 2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+  <div class="container" style="display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span id="hud-hero-icon" style="font-size: 2rem;"></span>
+      <div>
+        <div style="font-family: var(--font-display); font-size: 1.2rem; color: var(--color-text);"><span id="hud-hero-name"></span></div>
+        <div style="color: var(--color-primary); font-size: 0.9rem;" id="hud-class"></div>
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-family: var(--font-display); font-size: 0.8rem; margin-bottom: 0.5rem;"><span id="hud-level"></span> <span id="hud-xp-label" style="color: var(--color-gold);"></span></div>
+      <button id="hud-reset-btn" style="background: none; border: 1px solid var(--color-border); color: var(--color-text-muted); padding: 0.3rem 0.6rem; cursor: pointer; font-size: 0.8rem;">重新開始</button>
+    </div>
+  </div>
+</div>
+
+<div id="main-game-content" style="display: none;">
+
+<!-- ============================================
+     CURRENT STATUS SECTION
+     ============================================ -->
+<section id="current-status" class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag pixel-border">STATUS</span>
+      <h2 class="section-title">當前狀態</h2>
+      <p class="section-desc">你目前的英雄與職業詳情</p>
+    </div>
+
+    <div class="status-layout" style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; align-items: start;">
+      <!-- Image / Card side -->
+      <div class="status-image-container" style="background: var(--color-surface); border: 2px solid var(--color-border); padding: 1rem; text-align: center;">
+        <img id="status-class-image" src="" alt="職業圖片" style="max-width: 100%; height: auto; display: block; margin: 0 auto; min-height: 200px; background: var(--color-surface-dynamic);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div id="status-image-placeholder" style="display: none; height: 200px; align-items: center; justify-content: center; color: var(--color-text-muted); border: 1px dashed var(--color-divider);">
+          暫無圖片
+        </div>
+      </div>
+
+      <!-- Info side -->
+      <div class="status-info-container">
+        <!-- Hero Info -->
+        <div style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-divider);">
+          <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--color-primary);">
+            <span id="status-hero-icon"></span> <span id="status-hero-name"></span>
+          </h3>
+          <p id="status-hero-desc" style="color: var(--color-text-muted); line-height: 1.6; font-size: 0.95rem;"></p>
+        </div>
+
+        <!-- Class Info -->
+        <div>
+          <h4 style="font-family: var(--font-display); font-size: 1rem; margin-bottom: 1rem; color: var(--color-gold);">
+            <span id="status-class-name"></span> <span style="font-size: 0.8rem; color: var(--color-text-faint);">Lv.<span id="status-class-level"></span></span>
+          </h4>
+          <div id="status-class-weapon" style="font-size: 0.8rem; color: var(--color-text-faint); margin-bottom: 0.5rem;"></div>
+          <p id="status-class-desc" style="color: var(--color-text); line-height: 1.6; font-size: 0.95rem;"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Class Categories Overview -->
+<section class="section" id="player-dashboard" style="padding:2rem 0 0">
+  <div class="container">
+    <div class="section-header" style="margin-bottom:1.2rem">
+      <span class="section-tag pixel-border">OVERVIEW</span>
+      <h2 class="section-title">冒險者總覽</h2>
+      <p class="section-desc">你在 ChronoQuest 世界中的整體冒險進度</p>
+    </div>
+    <div id="player-dashboard-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:0.5rem">
+      <!-- Populated by app.js -->
+    </div>
+  </div>
+</section>
+
+
+<!-- Class Tree -->
+<section class="section section-alt" id="tree">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag pixel-border">CLASS TREE</span>
+      <h2 class="section-title">轉職路線圖</h2>
+      <p class="section-desc">每個職業都有獨特的轉職路線，選擇不同的分支將塑造截然不同的角色。部分高階職業需要同時滿足多個前置條件。</p>
+    </div>
+
+    <!-- Physical Male Tree -->
+    <!-- Tree content rendered dynamically by app.js -->
+    <div id="class-tree-container"></div>
+
+  </div>
+</section>
+
+<!-- Heroes Section -->
+<section class="section" id="heroes">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag pixel-border">HEROES</span>
+      <h2 class="section-title">英雄圖鑑</h2>
+      <p class="section-desc">9位獨特的英雄角色，各有不同的成長路線與隱藏職業。點擊了解詳情。</p>
+    </div>
+    <div class="heroes-grid" id="heroes-grid"></div>
+  </div>
+</section>
+
+<!-- Hero Modal -->
+<div class="hero-modal-overlay" id="hero-modal-overlay">
+  <div class="hero-modal pixel-border" id="hero-modal">
+    <button class="hero-modal-close" id="hero-modal-close" aria-label="關閉">✕</button>
+    <div class="hero-modal-header">
+      <span class="hero-modal-icon" id="hero-modal-icon"></span>
+      <div>
+        <h3 class="hero-modal-name" id="hero-modal-name"></h3>
+        <span class="hero-modal-badge" id="hero-modal-badge"></span>
+      </div>
+    </div>
+    <p class="hero-modal-desc" id="hero-modal-desc"></p>
+    <div class="hero-modal-stats" id="hero-modal-stats"></div>
+    <div class="hero-modal-path">
+      <span class="hero-modal-path-label">基本路線</span>
+      <span class="hero-modal-path-value" id="hero-modal-path"></span>
+    </div>
+    <div class="hero-modal-hidden" id="hero-modal-hidden"></div>
+  </div>
+</div>
+
+<!-- Class Modal -->
+<div class="class-modal-overlay" id="class-modal-overlay">
+  <div class="class-modal pixel-border" id="class-modal">
+    <button class="class-modal-close" id="class-modal-close" aria-label="關閉">✕</button>
+    <div class="class-modal-header">
+      <span class="class-modal-icon" id="class-modal-icon"></span>
+      <div>
+        <h3 class="class-modal-name" id="class-modal-name"></h3>
+        <span class="class-modal-tag" id="class-modal-tag"></span>
+      </div>
+    </div>
+    <p class="class-modal-weapon" id="class-modal-weapon"></p>
+    <p class="class-modal-desc" id="class-modal-desc"></p>
+  </div>
+</div>
+
+<!-- XP Tracker Section -->
+<section class="section" id="xp">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag pixel-border">XP TRACKER</span>
+      <h2 class="section-title">經驗追蹤</h2>
+      <p class="section-desc">完成每日任務，累積經驗值，提升你的冒險者等級。</p>
+    </div>
+
+    <div class="xp-container">
+      <!-- Level Display -->
+      <div class="xp-level-box pixel-border" id="xp-level-box">
+        <div class="xp-level-icon" id="xp-level-icon">🌱</div>
+        <div class="xp-level-info">
+          <div class="xp-level-title" id="xp-level-title">Lv.1 冒險者</div>
+          <div class="xp-bar-wrap">
+            <div class="xp-bar">
+              <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
+            </div>
+            <div class="xp-bar-text" id="xp-bar-text">0 / 100 XP</div>
+          </div>
+        </div>
+        <div class="xp-levelup-flash" id="xp-levelup-flash">LEVEL UP!</div>
+      </div>
+
+      <!-- Daily Quests -->
+      <!-- Hero Tasks -->
+      <h3 style="margin:1.5rem 0 0.75rem;font-family:var(--font-display)">🏆 英雄任務</h3>
+      <div id="hero-tasks"></div>
+
+      <!-- Class XP Bar -->
+      <div class="xp-level-box pixel-border" style="margin-top:2rem">
+        <div class="xp-level-icon">⚔</div>
+        <div class="xp-level-info">
+          <div class="xp-level-title" id="class-level-title">職業 Lv.1</div>
+          <div class="xp-bar-wrap">
+            <div class="xp-bar">
+              <div class="xp-bar-fill" id="class-bar-fill" style="width:0%;background:var(--color-gold)"></div>
+            </div>
+            <div class="xp-bar-text" id="class-bar-text">0 / 50 Class XP</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class Tasks -->
+      <h3 style="margin:1.5rem 0 0.75rem;font-family:var(--font-display)">⚔ 職業任務</h3>
+      <div id="class-tasks"></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section cta-section">
+  <div class="container">
+    <div class="cta-box pixel-border">
+      <h2 class="cta-title">準備好踏上冒險了嗎？</h2>
+      <p class="cta-desc">選擇你的起始職業，開始一段獨一無二的成長之旅。每一次轉職，都是一次蛻變。</p>
+      
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+
+</div>
+<footer class="footer">
+  <div class="container footer-inner">
+    <p class="footer-text">ChronoQuest — 靈感源自《超時空英雄傳說III：狂神降世》</p>
+    <p class="footer-credit">
+      <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">
+        Created with Perplexity Computer
+      </a>
+    </p>
+  </div>
+</footer>
+
+<script src="./data.js"></script>
+<script src="./stateManager.js"></script>
+<script src="./app.js"></script>
+<script data-pplx-inline-edit>
+(function(){
+  if(window===window.top)return;
+  function inlineAll(orig,clone){
+    if(orig.nodeType!==1)return;
+    try{
+      var cs=getComputedStyle(orig);
+      var t='';
+      for(var i=0;i<cs.length;i++){t+=cs[i]+':'+cs.getPropertyValue(cs[i])+';';}
+      clone.style.cssText=t;
+    }catch(e){}
+    var oc=orig.children,cc=clone.children;
+    for(var j=0;j<oc.length&&j<cc.length;j++){inlineAll(oc[j],cc[j]);}
+  }
+  function stripExternal(clone){
+    var imgs=clone.querySelectorAll('img');
+    for(var i=0;i<imgs.length;i++){
+      var s=imgs[i].getAttribute('src');
+      if(s&&!s.startsWith('data:'))imgs[i].removeAttribute('src');
+    }
+    var all=clone.querySelectorAll('*');
+    for(var i=0;i<all.length;i++){
+      var st=all[i].style.cssText;
+      if(st&&st.indexOf('url(')>=0){
+        all[i].style.cssText=st.replace(/url\(["']?(?!data:)[^)"']*["']?\)/gi,'none');
+      }
+    }
+  }
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='INLINE_EDIT_CAPTURE_REQUEST')return;
+    var scrollX=window.scrollX||window.pageXOffset||0;
+    var scrollY=window.scrollY||window.pageYOffset||0;
+    var w=window.innerWidth,h=window.innerHeight;
+    try{
+      var clone=document.documentElement.cloneNode(true);
+      var rm=clone.querySelectorAll('script,link[rel="stylesheet"],style');
+      for(var i=0;i<rm.length;i++){rm[i].remove();}
+      inlineAll(document.documentElement,clone);
+      stripExternal(clone);
+      var html=new XMLSerializer().serializeToString(clone);
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'
+        +'<foreignObject width="100%" height="100%">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" style="width:'+w+'px;height:'+h+'px;overflow:hidden">'
+        +'<div style="transform:translate(-'+scrollX+'px,-'+scrollY+'px);transform-origin:top left">'
+        +html+'</div></div></foreignObject></svg>';
+      var svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0);
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:c.toDataURL('image/png'),scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.onerror=function(){
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.src=svgUrl;
+    }catch(err){
+      window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+    }
+  });
+})();
+</script></body>
+</html>
