@@ -871,35 +871,35 @@ function renderPlayerDashboard() {
   // Aggregate all unlocked classes across ALL hero slots
   const unlockedSet        = new Set();
   const unlockedHiddenSet  = new Set();
+  const maxedClassesSet    = new Set();
+  const MAX_LEVEL          = 10; // Max class level
 
-  allSlots.forEach(slot => {
-    const saved = slot.savedState;
-    if (!saved) return;
-    Object.entries(saved.character.unlockedClasses || {}).forEach(([cls, lvl]) => {
+  function processClasses(unlockedMap) {
+    if (!unlockedMap) return;
+    Object.entries(unlockedMap).forEach(([cls, lvl]) => {
       if (lvl > 0) {
         const classData = (CQ.classes || []).find(c => c.name === cls);
         if (classData && (classData.hidden || classData.branch === 'hidden')) {
           unlockedHiddenSet.add(cls);
-        } else {
+        } else if (classData) {
           unlockedSet.add(cls);
+        }
+        if (lvl >= MAX_LEVEL) {
+          maxedClassesSet.add(cls);
         }
       }
     });
+  }
+
+  // Count from saved slots
+  allSlots.forEach(slot => {
+    if (slot.savedState) processClasses(slot.savedState.character.unlockedClasses);
   });
 
-  // Also count active hero's current state
+  // Count active hero's current state (overrides slot if fresher)
   const activeState = SM.load();
   if (activeState) {
-    Object.entries(activeState.character.unlockedClasses || {}).forEach(([cls, lvl]) => {
-      if (lvl > 0) {
-        const classData = (CQ.classes || []).find(c => c.name === cls);
-        if (classData && (classData.hidden || classData.branch === 'hidden')) {
-          unlockedHiddenSet.add(cls);
-        } else {
-          unlockedSet.add(cls);
-        }
-      }
-    });
+    processClasses(activeState.character.unlockedClasses);
   }
 
   const cards = [
@@ -926,6 +926,14 @@ function renderPlayerDashboard() {
       total: allHidden.length,
       sub: '已解鎖隱藏職業',
       color: '#c084fc'
+    },
+    {
+      icon: '👑',
+      label: '職業精通',
+      value: maxedClassesSet.size,
+      total: CQ.classes.length, // total possible classes to max
+      sub: `已達滿級 (Lv.${MAX_LEVEL})`,
+      color: '#f97316' // Fiery orange
     }
   ];
 
