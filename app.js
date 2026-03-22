@@ -147,21 +147,20 @@ function updateStatus(state) {
     set('status-class-desc',   classData.desc   || '');
   }
 
-  // Class image  [patched: iPhone 14 Pro Max — let CSS control sizing via .status-class-image-wrap]
+  // Class image [mobile fix: CSS controls sizing via .status-image-container]
   const img = document.getElementById('status-class-image');
   const placeholder = document.getElementById('status-image-placeholder');
   if (img) {
     img.style.display = 'block';
-    img.style.removeProperty('width');
-    img.style.removeProperty('height');
+    img.style.removeProperty && img.style.removeProperty('width');
+    img.style.removeProperty && img.style.removeProperty('height');
     if (placeholder) placeholder.style.display = 'none';
     img.src = 'images/' + state.character.currentClass + '.jpg';
     img.alt = state.character.currentClass;
     img.onerror = function() {
       img.style.display = 'none';
       if (placeholder) {
-        // Remove all inline sizing — let CSS handle the placeholder box
-        placeholder.style.cssText = '';
+        placeholder.style.display = 'flex';
         placeholder.textContent = (classData && classData.icon) ? classData.icon : state.hero.icon;
       }
     };
