@@ -308,16 +308,19 @@ function renderClassTasks(state) {
   const tasks = SM.getClassTaskStatus(state);
   _renderTasks(state, 'class-tasks', tasks, (taskId) => {
     const st = SM.load(); if (!st) return;
-    // Also award player XP equal to the task's xp value
+    // Step 1: find task XP amount
     const allTasks = [...(CQ.classTasks || []), ...(CQ.heroTasks || [])];
     const taskDef = allTasks.find(t => t.id === taskId);
     const xpAmt = taskDef ? taskDef.xp : 10;
+    // Step 2: complete class task (saves internally)
     const result = SM.completeClassTask(st, taskId);
-    const heroResult = SM.addXP(st, xpAmt);
-    const stAfter = heroResult.state || st;
+    // Step 3: reload fresh state AFTER class task saved, then add player XP on top
+    const st2 = SM.load();
+    const heroResult = SM.addXP(st2, xpAmt);
+    const stAfter = (heroResult && heroResult.state) ? heroResult.state : st2;
     SM.save(stAfter);
     if (result.leveledUp) showClassLevelUpModal(stAfter, result.newClassLevel);
-    if (heroResult.leveledUp) {
+    if (heroResult && heroResult.leveledUp) {
       const flash = document.getElementById('xp-levelup-flash');
       if (flash) { flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 2000); }
     }
