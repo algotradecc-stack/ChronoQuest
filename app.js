@@ -211,7 +211,7 @@ function updateStatus(state) {
 
 // ── COOLDOWN PER CLICK (5 min between each task completion) ───────────
 const _CD_KEY = 'cq_cd_until';   // timestamp: locked until this time
-const _CD_MS  = 5 * 60 * 1000;  // 5 minutes
+const _CD_MS  = 30 * 1000;       // 30 seconds
 
 function isFocusActive() {
   return Date.now() < parseInt(localStorage.getItem(_CD_KEY) || '0', 10);
@@ -257,12 +257,11 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
     item.style.cssText = `
       display:flex;align-items:center;gap:1rem;
       padding:0.75rem 1rem;margin-bottom:0.5rem;
-      opacity:${_focusDim ? '0.35' : (task.done ? '0.55' : '1')};
-      pointer-events:${_focusDim ? 'none' : 'auto'};
       background:var(--color-surface);
       border:1px solid ${task.done ? 'var(--color-primary)' : 'var(--color-border)'};
-      border-radius:4px;cursor:${task.done ? 'default' : 'pointer'};
-      opacity:${task.done ? '0.55' : '1'};
+      border-radius:4px;
+      cursor:${(task.done || _focusDim) ? 'default' : 'pointer'};
+      opacity:${_focusDim ? '0.35' : (task.done ? '0.55' : '1')};
       transition:border-color 0.2s,transform 0.1s,opacity 0.2s;
     `;
     item.innerHTML = `
