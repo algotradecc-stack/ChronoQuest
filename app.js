@@ -18,11 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderClassTree();
     // Wire focus button
     setTimeout(() => {
-      const _fb = document.getElementById('focus-mode-btn');
-      if (_fb && !_fb.dataset.wired) {
-        _fb.dataset.wired = '1';
-        _fb.addEventListener('click', () => { if (!isFocusActive()) activateFocus(); });
-      }
       renderFocusButton();
     }, 100);
     renderHeroesSection();
@@ -214,34 +209,39 @@ function updateStatus(state) {
   if (_sText) _sText.textContent = _sp.next ? _sp.current + ' / ' + _sp.next + ' XP' : _sp.current + ' XP MAX';
 }
 
-// ── FOCUS MODE (防沉迷冷卻期) ────────────────────────────────────────────
-const _FOCUS_MS  = 5 * 60 * 1000;
-const _FOCUS_KEY = 'cq_focus_until';
-function _getFocusUntil() { return parseInt(localStorage.getItem(_FOCUS_KEY) || '0', 10); }
-function isFocusActive()  { return Date.now() < _getFocusUntil(); }
-function activateFocus() {
-  localStorage.setItem(_FOCUS_KEY, String(Date.now() + _FOCUS_MS));
-  renderFocusButton();
-  document.querySelectorAll('.xp-quest-item').forEach(el => {
-    el.style.opacity = '0.4'; el.style.pointerEvents = 'none';
-  });
+// ── COOLDOWN PER CLICK (5 min between each task completion) ───────────
+const _CD_KEY = 'cq_cd_until';   // timestamp: locked until this time
+const _CD_MS  = 5 * 60 * 1000;  // 5 minutes
+
+function isFocusActive() {
+  return Date.now() < parseInt(localStorage.getItem(_CD_KEY) || '0', 10);
 }
+
+function startCooldown() {
+  localStorage.setItem(_CD_KEY, String(Date.now() + _CD_MS));
+  renderFocusButton();
+  const st = SM.load(); if (st) updateStatus(st);
+}
+
 function renderFocusButton() {
   const btn = document.getElementById('focus-mode-btn');
   if (!btn) return;
-  const until = _getFocusUntil(), now = Date.now();
+  const until = parseInt(localStorage.getItem(_CD_KEY) || '0', 10);
+  const now = Date.now();
   if (now < until) {
-    const s = Math.ceil((until - now) / 1000);
-    btn.textContent = '🧘 專注中 ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:var(--color-surface-dynamic);color:var(--color-text-muted);border:1px solid var(--color-border);font-family:var(--font-display);font-size:0.68rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
+    const secsLeft = Math.ceil((until - now) / 1000);
+    const m = Math.floor(secsLeft / 60), s = secsLeft % 60;
+    btn.textContent = '⏳ 冷卻中—下一個任務 ' + m + ':' + String(s).padStart(2,'0');
+    btn.style.cssText = 'width:100%;padding:0.6rem;background:rgba(255,215,0,0.08);color:var(--color-gold);border:2px solid var(--color-gold);font-family:var(--font-display);font-size:0.65rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
     btn.disabled = true;
   } else {
-    btn.textContent = '🧘 專注模式 (5分鐘)';
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;';
-    btn.disabled = false;
+    btn.textContent = '✅ 可完成任務';
+    btn.style.cssText = 'width:100%;padding:0.6rem;background:rgba(68,221,136,0.08);color:var(--color-success);border:1px solid var(--color-success);font-family:var(--font-display);font-size:0.68rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
+    btn.disabled = true;
   }
 }
-setInterval(() => { if (isFocusActive()) renderFocusButton(); }, 1000);
+
+setInterval(() => { renderFocusButton(); }, 1000);
 
 // ============================================
 // Task renderer (shared)
@@ -253,9 +253,12 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
   tasks.forEach(task => {
     const item = document.createElement('div');
     item.className = 'xp-quest-item';
+    const _focusDim = !task.done && isFocusActive();
     item.style.cssText = `
       display:flex;align-items:center;gap:1rem;
       padding:0.75rem 1rem;margin-bottom:0.5rem;
+      opacity:${_focusDim ? '0.35' : (task.done ? '0.55' : '1')};
+      pointer-events:${_focusDim ? 'none' : 'auto'};
       background:var(--color-surface);
       border:1px solid ${task.done ? 'var(--color-primary)' : 'var(--color-border)'};
       border-radius:4px;cursor:${task.done ? 'default' : 'pointer'};
@@ -271,6 +274,7 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
     if (!task.done) {
       item.addEventListener('click', () => {
         if (isFocusActive()) {
+          // Still in cooldown — shake feedback
           item.style.transform = 'translateX(6px)';
           setTimeout(() => { item.style.transform = 'translateX(-4px)'; }, 80);
           setTimeout(() => { item.style.transform = ''; }, 160);
@@ -279,6 +283,8 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
         item.style.transform = 'scale(1.03)';
         setTimeout(() => { item.style.transform = ''; }, 150);
         onClickFn(task.id);
+        // Start 5-min cooldown after successful task click
+        startCooldown();
       });
     }
     container.appendChild(item);

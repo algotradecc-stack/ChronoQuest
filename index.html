@@ -161,6 +161,19 @@
 
       <!-- Info: always on top -->
       <div class="status-info-container">
+
+        <!-- Player XP bar — top of status panel -->
+        <div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--color-divider);">
+          <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
+            <span id="status-xp-level-icon" style="font-size:1.3rem;">🌱</span>
+            <span id="status-xp-level-title" style="font-family:var(--font-display);font-size:0.72rem;color:var(--color-gold);letter-spacing:0.05em;"></span>
+          </div>
+          <div style="height:12px;background:var(--color-surface-dynamic);border:2px solid var(--color-border);overflow:hidden;margin-bottom:0.3rem;">
+            <div id="status-xp-bar-fill2" style="height:100%;width:0%;background:linear-gradient(90deg,var(--color-gold),var(--color-gold-hover));transition:width 0.6s ease;"></div>
+          </div>
+          <div id="status-xp-bar-text2" style="font-family:var(--font-display);font-size:0.6rem;color:var(--color-text-muted);text-align:right;letter-spacing:0.05em;"></div>
+        </div>
+
         <!-- Hero Info -->
         <div style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider);">
           <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--color-primary);">
@@ -176,18 +189,6 @@
           </h4>
           <div id="status-class-weapon" style="font-size: 0.8rem; color: var(--color-text-faint); margin-bottom: 0.5rem;"></div>
           <p id="status-class-desc" style="color: var(--color-text); line-height: 1.6; font-size: 0.95rem;"></p>
-        </div>
-
-        <!-- Player XP bar in Status section -->
-        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--color-divider);">
-          <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
-            <span id="status-xp-level-icon" style="font-size:1.4rem;">🌱</span>
-            <span id="status-xp-level-title" style="font-family:var(--font-display);font-size:0.72rem;color:var(--color-gold);letter-spacing:0.05em;"></span>
-          </div>
-          <div style="height:14px;background:var(--color-surface-dynamic);border:2px solid var(--color-border);overflow:hidden;margin-bottom:0.3rem;">
-            <div id="status-xp-bar-fill2" style="height:100%;width:0%;background:linear-gradient(90deg,var(--color-gold),var(--color-gold-hover));transition:width 0.6s ease;"></div>
-          </div>
-          <div id="status-xp-bar-text2" style="font-family:var(--font-display);font-size:0.6rem;color:var(--color-text-muted);text-align:right;letter-spacing:0.05em;"></div>
         </div>
       </div>
 
@@ -286,20 +287,8 @@
     </div>
 
     <div class="xp-container">
-      <!-- Level Display -->
-      <div class="xp-level-box pixel-border" id="xp-level-box">
-        <div class="xp-level-icon" id="xp-level-icon">🌱</div>
-        <div class="xp-level-info">
-          <div class="xp-level-title" id="xp-level-title">Lv.1 冒險者</div>
-          <div class="xp-bar-wrap">
-            <div class="xp-bar">
-              <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
-            </div>
-            <div class="xp-bar-text" id="xp-bar-text">0 / 100 XP</div>
-          </div>
-        </div>
-        <div class="xp-levelup-flash" id="xp-levelup-flash">LEVEL UP!</div>
-      </div>
+      <!-- LEVEL UP flash (hidden, triggered by JS) -->
+      <div class="xp-levelup-flash" id="xp-levelup-flash" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;font-family:var(--font-display);font-size:clamp(1rem,5vw,2rem);color:var(--color-gold);letter-spacing:0.1em;">LEVEL UP!</div>
 
       <!-- Class XP Bar -->
       <div class="xp-level-box pixel-border" style="margin-top:2rem">
@@ -317,7 +306,7 @@
 
       <!-- Class Tasks -->
       <h3 style="margin:1.5rem 0 0.75rem;font-family:var(--font-display)">⚔ 職業任務</h3>
-      <button id="focus-mode-btn" style="width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;">🧘 專注模式 (5分鐘)</button>
+      <button id="focus-mode-btn" style="width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;">🧘 專注模式</button>
       <div id="class-tasks"></div>
     </div>
   </div>
