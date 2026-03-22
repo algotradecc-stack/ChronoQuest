@@ -16,15 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHUD(state);
     updateStatus(state);
     renderClassTree();
-    // Wire focus button
-    setTimeout(() => {
-      const _fb = document.getElementById('focus-mode-btn');
-      if (_fb && !_fb.dataset.wired) {
-        _fb.dataset.wired = '1';
-        _fb.addEventListener('click', () => { if (!isFocusActive()) activateFocus(); });
-      }
-      renderFocusButton();
-    }, 100);
+    setTimeout(() => { renderFocusSwitch(); }, 100);
     renderHeroesSection();
     renderPlayerDashboard();
   }
@@ -106,12 +98,14 @@ function renderHeroSelection() {
 // ============================================
 function updateHUD(state) {
   if (!state) return;
+  const metaXP = loadMetaXP();
+  if (metaXP && state.xp) { state.xp.total = metaXP.total; state.xp.level = metaXP.level; state.xp.title = metaXP.title; }
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
   set('hud-hero-name', state.hero.name);
   set('hud-hero-icon', state.hero.icon);
   set('hud-level',     `Lv.${state.xp.level} ${state.xp.title}`);
-  set('hud-xp-label',  `${state.xp.total} XP`);
+  set('hud-xp-label',  `${state.xp.total} XP • ${state.xp.title || ''}`);
 
   const hudClass = document.getElementById('hud-class');
   if (hudClass) hudClass.textContent = `${state.character.currentClass} Lv.${state.character.classLevel}`;
@@ -214,34 +208,66 @@ function updateStatus(state) {
   if (_sText) _sText.textContent = _sp.next ? _sp.current + ' / ' + _sp.next + ' XP' : _sp.current + ' XP MAX';
 }
 
-// ── FOCUS MODE (防沉迷冷卻期) ────────────────────────────────────────────
-const _FOCUS_MS  = 5 * 60 * 1000;
-const _FOCUS_KEY = 'cq_focus_until';
-function _getFocusUntil() { return parseInt(localStorage.getItem(_FOCUS_KEY) || '0', 10); }
-function isFocusActive()  { return Date.now() < _getFocusUntil(); }
-function activateFocus() {
-  localStorage.setItem(_FOCUS_KEY, String(Date.now() + _FOCUS_MS));
-  renderFocusButton();
-  document.querySelectorAll('.xp-quest-item').forEach(el => {
-    el.style.opacity = '0.4'; el.style.pointerEvents = 'none';
-  });
+// ── FOCUS SWITCH + COOLDOWN PER CLICK ─────────────────────────────────
+const _FOCUS_SW_KEY = 'cq_focus_sw';   // 'on' | 'off'
+const _CD_KEY       = 'cq_cd_until';   // cooldown end timestamp
+const _CD_MS        = 10 * 1000;       // 10 seconds (set to 5*60*1000 for production)
+
+function isFocusSwitchOn() { return localStorage.getItem(_FOCUS_SW_KEY) === 'on'; }
+function isCoolingDown()   { return Date.now() < parseInt(localStorage.getItem(_CD_KEY) || '0', 10); }
+// isFocusActive used by _renderTasks to block clicks: switch ON + cooling down
+function isFocusActive()   { return isFocusSwitchOn() && isCoolingDown(); }
+
+function toggleFocusSwitch() {
+  const next = isFocusSwitchOn() ? 'off' : 'on';
+  localStorage.setItem(_FOCUS_SW_KEY, next);
+  if (next === 'off') localStorage.removeItem(_CD_KEY); // clear cooldown when turned off
+  renderFocusSwitch();
+  const st = SM.load(); if (st) updateStatus(st); // re-render tasks with new lock state
 }
-function renderFocusButton() {
-  const btn = document.getElementById('focus-mode-btn');
-  if (!btn) return;
-  const until = _getFocusUntil(), now = Date.now();
-  if (now < until) {
-    const s = Math.ceil((until - now) / 1000);
-    btn.textContent = '🧘 專注中 ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:var(--color-surface-dynamic);color:var(--color-text-muted);border:1px solid var(--color-border);font-family:var(--font-display);font-size:0.68rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
-    btn.disabled = true;
-  } else {
-    btn.textContent = '🧘 專注模式 (5分鐘)';
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;';
-    btn.disabled = false;
+
+function startCooldown() {
+  if (!isFocusSwitchOn()) return; // only cooldown if switch is ON
+  localStorage.setItem(_CD_KEY, String(Date.now() + _CD_MS));
+  renderFocusSwitch();
+  const st = SM.load(); if (st) updateStatus(st);
+}
+
+function renderFocusSwitch() {
+  const track = document.getElementById('focus-switch-track');
+  const thumb = document.getElementById('focus-switch-thumb');
+  const label = document.getElementById('focus-switch-label');
+  const cdBar = document.getElementById('focus-cd-bar');
+  if (!track || !thumb) return;
+  const on = isFocusSwitchOn();
+  // Switch visuals
+  track.style.background = on ? 'var(--color-primary)' : 'var(--color-border)';
+  thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) {
+    label.textContent = on ? '🧘 專注模式：開' : '🧘 專注模式：關';
+    label.style.color = on ? 'var(--color-primary)' : 'var(--color-text-muted)';
+  }
+  // Cooldown bar
+  if (cdBar) {
+    if (on && isCoolingDown()) {
+      const secsLeft = Math.ceil((parseInt(localStorage.getItem(_CD_KEY)||'0',10) - Date.now()) / 1000);
+      cdBar.style.display = 'block';
+      cdBar.textContent = '⏳ 冷卻 ' + secsLeft + 's — 其他任務鎖定中';
+    } else {
+      cdBar.style.display = 'none';
+    }
   }
 }
-setInterval(() => { if (isFocusActive()) renderFocusButton(); }, 1000);
+
+// Alias so old renderFocusButton calls still work
+function renderFocusButton() { renderFocusSwitch(); }
+
+setInterval(() => {
+  if (!isFocusSwitchOn()) return;
+  renderFocusSwitch();
+  // When cooldown just finished, re-render status to unlock tasks
+  const st = SM.load(); if (st) updateStatus(st);
+}, 1000);
 
 // ============================================
 // Task renderer (shared)
@@ -253,13 +279,15 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
   tasks.forEach(task => {
     const item = document.createElement('div');
     item.className = 'xp-quest-item';
+    const _focusDim = !task.done && isFocusActive();
     item.style.cssText = `
       display:flex;align-items:center;gap:1rem;
       padding:0.75rem 1rem;margin-bottom:0.5rem;
       background:var(--color-surface);
       border:1px solid ${task.done ? 'var(--color-primary)' : 'var(--color-border)'};
-      border-radius:4px;cursor:${task.done ? 'default' : 'pointer'};
-      opacity:${task.done ? '0.55' : '1'};
+      border-radius:4px;
+      cursor:${(task.done || _focusDim) ? 'default' : 'pointer'};
+      opacity:${_focusDim ? '0.35' : (task.done ? '0.55' : '1')};
       transition:border-color 0.2s,transform 0.1s,opacity 0.2s;
     `;
     item.innerHTML = `
@@ -271,6 +299,7 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
     if (!task.done) {
       item.addEventListener('click', () => {
         if (isFocusActive()) {
+          // Still in cooldown — shake feedback
           item.style.transform = 'translateX(6px)';
           setTimeout(() => { item.style.transform = 'translateX(-4px)'; }, 80);
           setTimeout(() => { item.style.transform = ''; }, 160);
@@ -279,6 +308,8 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
         item.style.transform = 'scale(1.03)';
         setTimeout(() => { item.style.transform = ''; }, 150);
         onClickFn(task.id);
+        // Start 5-min cooldown after successful task click
+        startCooldown();
       });
     }
     container.appendChild(item);
@@ -298,24 +329,53 @@ function renderHeroTasks(state) {
   });
 }
 
+// ── PLAYER META XP (independent of SM state) ─────────────────────────
+const META_XP_KEY = 'cq_meta_xp';
+function loadMetaXP() {
+  try {
+    const raw = localStorage.getItem(META_XP_KEY);
+    return raw ? JSON.parse(raw) : { total: 0, level: 1, title: '' };
+  } catch (e) {
+    return { total: 0, level: 1, title: '' };
+  }
+}
+function saveMetaXP(x) { localStorage.setItem(META_XP_KEY, JSON.stringify(x)); }
+
 function renderClassTasks(state) {
   const tasks = SM.getClassTaskStatus(state);
   _renderTasks(state, 'class-tasks', tasks, (taskId) => {
     const st = SM.load(); if (!st) return;
-    // Also award player XP equal to the task's xp value
+    // Step 1: find task XP amount
     const allTasks = [...(CQ.classTasks || []), ...(CQ.heroTasks || [])];
     const taskDef = allTasks.find(t => t.id === taskId);
     const xpAmt = taskDef ? taskDef.xp : 10;
+    // Step 2: complete class task (saves internally)
     const result = SM.completeClassTask(st, taskId);
-    const heroResult = SM.addXP(st, xpAmt);
-    const stAfter = heroResult.state || st;
-    SM.save(stAfter);
-    if (result.leveledUp) showClassLevelUpModal(stAfter, result.newClassLevel);
-    if (heroResult.leveledUp) {
-      const flash = document.getElementById('xp-levelup-flash');
-      if (flash) { flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 2000); }
+    // Step 3: update META XP, then mirror into state.xp for display
+    const st2 = SM.load() || st;
+    let meta = loadMetaXP();
+    meta.total = (meta.total || 0) + xpAmt;
+    let heroLvUp = false;
+    if (CQ.xpLevels) {
+      let best = CQ.xpLevels[0];
+      for (const l of CQ.xpLevels) {
+        if (meta.total >= (l.xpReq || 0) && (!best || l.level > best.level)) best = l;
+      }
+      if (best) {
+        if (best.level > (meta.level || 1)) heroLvUp = true;
+        meta.level = best.level;
+        meta.title = best.title;
+      }
     }
-    updateHUD(stAfter); updateStatus(stAfter);
+    saveMetaXP(meta);
+    st2.xp = { total: meta.total, level: meta.level, title: meta.title };
+    SM.save(st2);
+    if (result.leveledUp) showClassLevelUpModal(st2, result.newClassLevel);
+    if (heroLvUp) {
+      const flash = document.getElementById('xp-levelup-flash');
+      if (flash) { flash.style.display = 'flex'; setTimeout(() => flash.style.display = 'none', 2000); }
+    }
+    updateHUD(st2); updateStatus(st2);
   });
 }
 
@@ -410,18 +470,28 @@ function showClassLevelUpModal(state, newClassLevel) {
         const hero2     = CQ.heroes[fresh.hero.heroId];
         const hGender   = hero2 ? hero2.gender : 'male';
         const baseOk    = !isBase || isBase.gender === hGender || isBase.gender === 'any' || hGender === 'other';
+        // Snapshot player XP before any promotion saves
+        const _savedXP = JSON.parse(JSON.stringify(fresh.xp || { total: 0, level: 1, title: '' }));
         if (isBase && baseOk) {
           fresh.character.currentClass = choice;
           fresh.character.classLevel   = 1;
           fresh.character.classXP      = 0;
           if (!fresh.character.unlockedClasses[choice]) fresh.character.unlockedClasses[choice] = 1;
+          fresh.xp = _savedXP; // ensure xp not lost
           SM.save(fresh);
         } else if (!isBase) {
           SM.promote(fresh, choice);
+          // SM.promote may overwrite xp — patch it back
+          const _afterPromote = SM.load();
+          if (_afterPromote) {
+            _afterPromote.xp = _savedXP;
+            SM.save(_afterPromote);
+          }
         }
       }
       overlay.remove();
-      updateHUD(fresh); updateStatus(fresh);
+      const _freshFinal = SM.load() || fresh;
+      updateHUD(_freshFinal); updateStatus(_freshFinal);
       renderClassTree();
       renderHeroesSection();
     });
