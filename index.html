@@ -287,9 +287,6 @@
     </div>
 
     <div class="xp-container">
-      <!-- LEVEL UP flash (hidden, triggered by JS) -->
-      <div class="xp-levelup-flash" id="xp-levelup-flash" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;font-family:var(--font-display);font-size:clamp(1rem,5vw,2rem);color:var(--color-gold);letter-spacing:0.1em;">LEVEL UP!</div>
-
       <!-- Class XP Bar -->
       <div class="xp-level-box pixel-border" style="margin-top:2rem">
         <div class="xp-level-icon">⚔</div>
@@ -306,7 +303,14 @@
 
       <!-- Class Tasks -->
       <h3 style="margin:1.5rem 0 0.75rem;font-family:var(--font-display)">⚔ 職業任務</h3>
-      <button id="focus-mode-btn" style="width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;">🧘 專注模式</button>
+      <!-- Focus Mode Switch -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0.9rem;margin-bottom:1rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:4px;">
+        <span id="focus-switch-label" style="font-family:var(--font-display);font-size:0.65rem;color:var(--color-text-muted);letter-spacing:0.05em;">🧘 專注模式</span>
+        <div id="focus-switch-track" onclick="toggleFocusSwitch()" style="width:44px;height:24px;border-radius:12px;background:var(--color-border);position:relative;cursor:pointer;transition:background 0.25s;flex-shrink:0;">
+          <div id="focus-switch-thumb" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform 0.25s;"></div>
+        </div>
+      </div>
+      <div id="focus-cd-bar" style="display:none;margin-top:-0.5rem;margin-bottom:1rem;font-family:var(--font-display);font-size:0.6rem;color:var(--color-gold);text-align:center;padding:0.3rem;background:rgba(255,215,0,0.06);border:1px solid var(--color-gold);border-radius:3px;"></div>
       <div id="class-tasks"></div>
     </div>
   </div>
@@ -398,5 +402,7 @@
     }
   });
 })();
-</script></body>
+</script><!-- LEVEL UP flash overlay -->
+<div id="xp-levelup-flash" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;font-family:var(--font-display);font-size:clamp(1.2rem,6vw,2.5rem);color:var(--color-gold);letter-spacing:0.1em;text-shadow:0 0 20px var(--color-gold);">LEVEL UP!</div>
+</body>
 </html>

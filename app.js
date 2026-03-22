@@ -16,10 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHUD(state);
     updateStatus(state);
     renderClassTree();
-    // Wire focus button
-    setTimeout(() => {
-      renderFocusButton();
-    }, 100);
+    setTimeout(() => { renderFocusSwitch(); }, 100);
     renderHeroesSection();
     renderPlayerDashboard();
   }
@@ -209,39 +206,61 @@ function updateStatus(state) {
   if (_sText) _sText.textContent = _sp.next ? _sp.current + ' / ' + _sp.next + ' XP' : _sp.current + ' XP MAX';
 }
 
-// ── COOLDOWN PER CLICK (5 min between each task completion) ───────────
-const _CD_KEY = 'cq_cd_until';   // timestamp: locked until this time
-const _CD_MS  = 30 * 1000;       // 30 seconds
+// ── FOCUS SWITCH + COOLDOWN PER CLICK ─────────────────────────────────
+const _FOCUS_SW_KEY = 'cq_focus_sw';   // 'on' | 'off'
+const _CD_KEY       = 'cq_cd_until';   // cooldown end timestamp
+const _CD_MS        = 10 * 1000;       // 10 seconds (set to 5*60*1000 for production)
 
-function isFocusActive() {
-  return Date.now() < parseInt(localStorage.getItem(_CD_KEY) || '0', 10);
+function isFocusSwitchOn() { return localStorage.getItem(_FOCUS_SW_KEY) === 'on'; }
+function isCoolingDown()   { return Date.now() < parseInt(localStorage.getItem(_CD_KEY) || '0', 10); }
+// isFocusActive used by _renderTasks to block clicks: switch ON + cooling down
+function isFocusActive()   { return isFocusSwitchOn() && isCoolingDown(); }
+
+function toggleFocusSwitch() {
+  const next = isFocusSwitchOn() ? 'off' : 'on';
+  localStorage.setItem(_FOCUS_SW_KEY, next);
+  if (next === 'off') localStorage.removeItem(_CD_KEY); // clear cooldown when turned off
+  renderFocusSwitch();
+  const st = SM.load(); if (st) updateStatus(st); // re-render tasks with new lock state
 }
 
 function startCooldown() {
+  if (!isFocusSwitchOn()) return; // only cooldown if switch is ON
   localStorage.setItem(_CD_KEY, String(Date.now() + _CD_MS));
-  renderFocusButton();
+  renderFocusSwitch();
   const st = SM.load(); if (st) updateStatus(st);
 }
 
-function renderFocusButton() {
-  const btn = document.getElementById('focus-mode-btn');
-  if (!btn) return;
-  const until = parseInt(localStorage.getItem(_CD_KEY) || '0', 10);
-  const now = Date.now();
-  if (now < until) {
-    const secsLeft = Math.ceil((until - now) / 1000);
-    const m = Math.floor(secsLeft / 60), s = secsLeft % 60;
-    btn.textContent = '⏳ 冷卻中—下一個任務 ' + m + ':' + String(s).padStart(2,'0');
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:rgba(255,215,0,0.08);color:var(--color-gold);border:2px solid var(--color-gold);font-family:var(--font-display);font-size:0.65rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
-    btn.disabled = true;
-  } else {
-    btn.textContent = '✅ 可完成任務';
-    btn.style.cssText = 'width:100%;padding:0.6rem;background:rgba(68,221,136,0.08);color:var(--color-success);border:1px solid var(--color-success);font-family:var(--font-display);font-size:0.68rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
-    btn.disabled = true;
+function renderFocusSwitch() {
+  const track = document.getElementById('focus-switch-track');
+  const thumb = document.getElementById('focus-switch-thumb');
+  const label = document.getElementById('focus-switch-label');
+  const cdBar = document.getElementById('focus-cd-bar');
+  if (!track || !thumb) return;
+  const on = isFocusSwitchOn();
+  // Switch visuals
+  track.style.background = on ? 'var(--color-primary)' : 'var(--color-border)';
+  thumb.style.transform  = on ? 'translateX(20px)' : 'translateX(0)';
+  if (label) {
+    label.textContent = on ? '🧘 專注模式：開' : '🧘 專注模式：關';
+    label.style.color = on ? 'var(--color-primary)' : 'var(--color-text-muted)';
+  }
+  // Cooldown bar
+  if (cdBar) {
+    if (on && isCoolingDown()) {
+      const secsLeft = Math.ceil((parseInt(localStorage.getItem(_CD_KEY)||'0',10) - Date.now()) / 1000);
+      cdBar.style.display = 'block';
+      cdBar.textContent = '⏳ 冷卻 ' + secsLeft + 's — 其他任務鎖定中';
+    } else {
+      cdBar.style.display = 'none';
+    }
   }
 }
 
-setInterval(() => { renderFocusButton(); }, 1000);
+// Alias so old renderFocusButton calls still work
+function renderFocusButton() { renderFocusSwitch(); }
+
+setInterval(() => { if (isFocusSwitchOn()) renderFocusSwitch(); }, 1000);
 
 // ============================================
 // Task renderer (shared)
@@ -313,17 +332,24 @@ function renderClassTasks(state) {
     const xpAmt = taskDef ? taskDef.xp : 10;
     // Step 2: complete class task (saves internally)
     const result = SM.completeClassTask(st, taskId);
-    // Step 3: reload fresh state AFTER class task saved, then add player XP on top
-    const st2 = SM.load();
-    const heroResult = SM.addXP(st2, xpAmt);
-    const stAfter = (heroResult && heroResult.state) ? heroResult.state : st2;
-    SM.save(stAfter);
-    if (result.leveledUp) showClassLevelUpModal(stAfter, result.newClassLevel);
-    if (heroResult && heroResult.leveledUp) {
-      const flash = document.getElementById('xp-levelup-flash');
-      if (flash) { flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 2000); }
+    // Step 3: reload, then add player XP on top — bulletproof approach
+    const st2 = SM.load() || st;
+    st2.xp = st2.xp || { total: 0, level: 1, title: '' };
+    st2.xp.total += xpAmt;
+    // Recalculate level from xpLevels table
+    let heroLvUp = false;
+    if (CQ.xpLevels) {
+      const newLvDef = [...CQ.xpLevels].reverse().find(l => st2.xp.total >= l.threshold);
+      if (newLvDef && newLvDef.level > st2.xp.level) { heroLvUp = true; }
+      if (newLvDef) { st2.xp.level = newLvDef.level; st2.xp.title = newLvDef.title; }
     }
-    updateHUD(stAfter); updateStatus(stAfter);
+    SM.save(st2);
+    if (result.leveledUp) showClassLevelUpModal(st2, result.newClassLevel);
+    if (heroLvUp) {
+      const flash = document.getElementById('xp-levelup-flash');
+      if (flash) { flash.style.display = 'flex'; setTimeout(() => flash.style.display = 'none', 2000); }
+    }
+    updateHUD(st2); updateStatus(st2);
   });
 }
 
