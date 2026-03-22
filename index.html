@@ -26,7 +26,7 @@
 <link rel="stylesheet" href="./base.css">
 <link rel="stylesheet" href="./style.css">
 
-  <!-- STATUS IMAGE — image below text, full width, consistent height everywhere -->
+  <!-- STATUS IMAGE — full natural height, no cropping -->
   <style>
     .status-layout {
       display: flex;
@@ -34,45 +34,37 @@
       gap: 1.5rem;
     }
 
-    /* Image box: always full width of its parent, fixed viewport-relative height */
+    /* Container grows to fit the image naturally */
     .status-image-container {
       position: relative;
       width: 100%;
-      height: 56vw;           /* ~240px on iPhone 14 Pro Max (430px wide) */
-      max-height: 380px;      /* cap on wide screens */
-      min-height: 180px;
-      overflow: hidden;
       background: var(--color-surface-dynamic);
       border: 2px solid var(--color-border);
       border-radius: var(--radius-md, 4px);
+      overflow: hidden;
     }
 
     #status-class-image {
       display: block;
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: top center;  /* keep character face visible */
+      height: auto;           /* full natural height — no cropping */
     }
 
     #status-image-placeholder {
-      position: absolute;
-      inset: 0;
       display: none;
       align-items: center;
       justify-content: center;
+      min-height: 200px;
       font-size: clamp(3rem, 12vw, 5rem);
       color: var(--color-text-faint);
     }
 
-    /* Full-bleed on narrow phones — no side borders */
+    /* Full-bleed on narrow phones */
     @media (max-width: 430px) {
       .status-image-container {
         border-left: none;
         border-right: none;
         border-radius: 0;
-        height: 52vw;         /* slightly shorter on tiny screens */
-        max-height: 260px;
       }
     }
   </style>
