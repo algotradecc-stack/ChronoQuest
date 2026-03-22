@@ -105,7 +105,7 @@ function updateHUD(state) {
   set('hud-hero-name', state.hero.name);
   set('hud-hero-icon', state.hero.icon);
   set('hud-level',     `Lv.${state.xp.level} ${state.xp.title}`);
-  set('hud-xp-label',  `${state.xp.total} XP`);
+  set('hud-xp-label',  `${state.xp.total} XP • ${state.xp.title || ''}`);
 
   const hudClass = document.getElementById('hud-class');
   if (hudClass) hudClass.textContent = `${state.character.currentClass} Lv.${state.character.classLevel}`;
