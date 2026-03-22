@@ -98,6 +98,8 @@ function renderHeroSelection() {
 // ============================================
 function updateHUD(state) {
   if (!state) return;
+  const metaXP = loadMetaXP();
+  if (metaXP && state.xp) { state.xp.total = metaXP.total; state.xp.level = metaXP.level; state.xp.title = metaXP.title; }
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
   set('hud-hero-name', state.hero.name);
@@ -322,6 +324,18 @@ function renderHeroTasks(state) {
   });
 }
 
+// ── PLAYER META XP (independent of SM state) ─────────────────────────
+const META_XP_KEY = 'cq_meta_xp';
+function loadMetaXP() {
+  try {
+    const raw = localStorage.getItem(META_XP_KEY);
+    return raw ? JSON.parse(raw) : { total: 0, level: 1, title: '' };
+  } catch (e) {
+    return { total: 0, level: 1, title: '' };
+  }
+}
+function saveMetaXP(x) { localStorage.setItem(META_XP_KEY, JSON.stringify(x)); }
+
 function renderClassTasks(state) {
   const tasks = SM.getClassTaskStatus(state);
   _renderTasks(state, 'class-tasks', tasks, (taskId) => {
@@ -332,17 +346,18 @@ function renderClassTasks(state) {
     const xpAmt = taskDef ? taskDef.xp : 10;
     // Step 2: complete class task (saves internally)
     const result = SM.completeClassTask(st, taskId);
-    // Step 3: reload, then add player XP on top — bulletproof approach
+    // Step 3: update META XP, then mirror into state.xp for display
     const st2 = SM.load() || st;
-    st2.xp = st2.xp || { total: 0, level: 1, title: '' };
-    st2.xp.total += xpAmt;
-    // Recalculate level from xpLevels table
+    let meta = loadMetaXP();
+    meta.total = (meta.total || 0) + xpAmt;
     let heroLvUp = false;
     if (CQ.xpLevels) {
-      const newLvDef = [...CQ.xpLevels].reverse().find(l => st2.xp.total >= l.threshold);
-      if (newLvDef && newLvDef.level > st2.xp.level) { heroLvUp = true; }
-      if (newLvDef) { st2.xp.level = newLvDef.level; st2.xp.title = newLvDef.title; }
+      const newLvDef = [...CQ.xpLevels].reverse().find(l => meta.total >= l.threshold);
+      if (newLvDef && newLvDef.level > (meta.level || 1)) { heroLvUp = true; }
+      if (newLvDef) { meta.level = newLvDef.level; meta.title = newLvDef.title; }
     }
+    saveMetaXP(meta);
+    st2.xp = { total: meta.total, level: meta.level, title: meta.title };
     SM.save(st2);
     if (result.leveledUp) showClassLevelUpModal(st2, result.newClassLevel);
     if (heroLvUp) {
