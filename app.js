@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHUD(state);
     updateStatus(state);
     renderClassTree();
+    // Wire focus button
+    setTimeout(() => {
+      const _fb = document.getElementById('focus-mode-btn');
+      if (_fb && !_fb.dataset.wired) {
+        _fb.dataset.wired = '1';
+        _fb.addEventListener('click', () => { if (!isFocusActive()) activateFocus(); });
+      }
+      renderFocusButton();
+    }, 100);
     renderHeroesSection();
     renderPlayerDashboard();
   }
@@ -193,7 +202,46 @@ function updateStatus(state) {
 
   renderHeroTasks(state);
   renderClassTasks(state);
+  // Sync player XP bar embedded in Status section
+  const _sTitle = document.getElementById('status-xp-level-title');
+  const _sIcon  = document.getElementById('status-xp-level-icon');
+  const _sFill  = document.getElementById('status-xp-bar-fill2');
+  const _sText  = document.getElementById('status-xp-bar-text2');
+  if (_sTitle) _sTitle.textContent = 'Lv.' + state.xp.level + ' ' + state.xp.title;
+  if (_sIcon) { const _ld = CQ.xpLevels.find(l => l.level === state.xp.level); if (_ld) _sIcon.textContent = _ld.icon; }
+  const _sp = SM.getHeroXPProgress(state);
+  if (_sFill) _sFill.style.width = _sp.pct;
+  if (_sText) _sText.textContent = _sp.next ? _sp.current + ' / ' + _sp.next + ' XP' : _sp.current + ' XP MAX';
 }
+
+// ── FOCUS MODE (防沉迷冷卻期) ────────────────────────────────────────────
+const _FOCUS_MS  = 5 * 60 * 1000;
+const _FOCUS_KEY = 'cq_focus_until';
+function _getFocusUntil() { return parseInt(localStorage.getItem(_FOCUS_KEY) || '0', 10); }
+function isFocusActive()  { return Date.now() < _getFocusUntil(); }
+function activateFocus() {
+  localStorage.setItem(_FOCUS_KEY, String(Date.now() + _FOCUS_MS));
+  renderFocusButton();
+  document.querySelectorAll('.xp-quest-item').forEach(el => {
+    el.style.opacity = '0.4'; el.style.pointerEvents = 'none';
+  });
+}
+function renderFocusButton() {
+  const btn = document.getElementById('focus-mode-btn');
+  if (!btn) return;
+  const until = _getFocusUntil(), now = Date.now();
+  if (now < until) {
+    const s = Math.ceil((until - now) / 1000);
+    btn.textContent = '🧘 專注中 ' + Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    btn.style.cssText = 'width:100%;padding:0.6rem;background:var(--color-surface-dynamic);color:var(--color-text-muted);border:1px solid var(--color-border);font-family:var(--font-display);font-size:0.68rem;cursor:default;letter-spacing:0.05em;margin-bottom:1rem;';
+    btn.disabled = true;
+  } else {
+    btn.textContent = '🧘 專注模式 (5分鐘)';
+    btn.style.cssText = 'width:100%;padding:0.6rem;background:transparent;color:var(--color-primary);border:1px solid var(--color-primary);font-family:var(--font-display);font-size:0.68rem;cursor:pointer;letter-spacing:0.05em;margin-bottom:1rem;';
+    btn.disabled = false;
+  }
+}
+setInterval(() => { if (isFocusActive()) renderFocusButton(); }, 1000);
 
 // ============================================
 // Task renderer (shared)
@@ -222,6 +270,12 @@ function _renderTasks(state, containerId, tasks, onClickFn) {
     `;
     if (!task.done) {
       item.addEventListener('click', () => {
+        if (isFocusActive()) {
+          item.style.transform = 'translateX(6px)';
+          setTimeout(() => { item.style.transform = 'translateX(-4px)'; }, 80);
+          setTimeout(() => { item.style.transform = ''; }, 160);
+          return;
+        }
         item.style.transform = 'scale(1.03)';
         setTimeout(() => { item.style.transform = ''; }, 150);
         onClickFn(task.id);
@@ -248,11 +302,20 @@ function renderClassTasks(state) {
   const tasks = SM.getClassTaskStatus(state);
   _renderTasks(state, 'class-tasks', tasks, (taskId) => {
     const st = SM.load(); if (!st) return;
+    // Also award player XP equal to the task's xp value
+    const allTasks = [...(CQ.classTasks || []), ...(CQ.heroTasks || [])];
+    const taskDef = allTasks.find(t => t.id === taskId);
+    const xpAmt = taskDef ? taskDef.xp : 10;
     const result = SM.completeClassTask(st, taskId);
-    if (result.leveledUp) {
-      showClassLevelUpModal(st, result.newClassLevel);
+    const heroResult = SM.addXP(st, xpAmt);
+    const stAfter = heroResult.state || st;
+    SM.save(stAfter);
+    if (result.leveledUp) showClassLevelUpModal(stAfter, result.newClassLevel);
+    if (heroResult.leveledUp) {
+      const flash = document.getElementById('xp-levelup-flash');
+      if (flash) { flash.style.display = 'block'; setTimeout(() => flash.style.display = 'none', 2000); }
     }
-    updateHUD(st); updateStatus(st);
+    updateHUD(stAfter); updateStatus(stAfter);
   });
 }
 
